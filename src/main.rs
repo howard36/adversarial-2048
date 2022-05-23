@@ -1,3 +1,5 @@
+use adversarial_2048::play;
+
 fn main() {
-    println!("Hello, world!");
+    play();
 }
