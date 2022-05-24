@@ -18,10 +18,10 @@ pub enum Move {
 
 #[derive(Debug, PartialEq)]
 pub struct State {
-    grid: [[i32; 4]; 4],
-    next_to_move: Role,
-    score: i32,
-    terminal: bool,
+    pub grid: [[i32; 4]; 4],
+    pub next_to_move: Role,
+    pub score: i32,
+    pub terminal: bool,
 }
 
 pub const INITIAL_STATE: State = State {
@@ -209,7 +209,7 @@ fn place(s: &State, x: usize, y: usize, val: i32) -> Result<State, InvalidMove> 
     }
 }
 
-pub fn next_state(s: &State, m: Move) -> Result<State, InvalidMove> {
+pub fn next_state(s: &State, m: &Move) -> Result<State, InvalidMove> {
     match m {
         Move::Slide(d) => match d {
             Direction::Up    => slide_up(s),
@@ -217,11 +217,42 @@ pub fn next_state(s: &State, m: Move) -> Result<State, InvalidMove> {
             Direction::Left  => slide_left(s),
             Direction::Right => slide_right(s),
         },
-        Move::Place { x, y, val } => place(s, x, y, val),
+        &Move::Place { x, y, val } => place(s, x, y, val),
     }
 }
 
+fn display_int(n: i32) -> String {
+    String::from(match n {
+        0 => "    ",
+        2 => "  2 ",
+        4 => "  4 ",
+        8 => "  8 ",
+        16 => " 16 ",
+        32 => " 32 ",
+        64 => " 64 ",
+        128 => " 128",
+        256 => " 256",
+        512 => " 512",
+        1024 => "1024",
+        2048 => "2048",
+        4096 => "4096",
+        8192 => "8192",
+        _ => unimplemented!(),
+    })
+}
 
+pub fn print_grid(grid: &[[i32; 4]; 4]) {
+    for i in 0..4 {
+        println!("---------------------");
+        println!("|    |    |    |    |");
+        for j in 0..4 {
+            print!("|{}", display_int(grid[i][j]));
+        }
+        println!("|");
+        println!("|    |    |    |    |");
+    }
+    println!("---------------------");
+}
 
 
 
@@ -257,11 +288,11 @@ mod tests {
     fn slide_left() {
         let s = INITIAL_STATE;
         let m = Move::Place { x: 1, y: 2, val: 2 };
-        let s1 = next_state(&s, m).unwrap();
-        let m2 = Move::Slide(Direction::Left);
-        let s2 = next_state(&s1, m2).unwrap();
+        let s = next_state(&s, m).unwrap();
+        let m = Move::Slide(Direction::Left);
+        let s = next_state(&s, m).unwrap();
 
-        assert_eq!(s2.grid, [
+        assert_eq!(s.grid, [
             [0, 0, 0, 0],
             [2, 0, 0, 0],
             [0, 0, 0, 0],
@@ -282,10 +313,10 @@ mod tests {
             score: 0,
             terminal: false,
         };
-        let m2 = Move::Slide(Direction::Left);
-        let s2 = next_state(&s, m2).unwrap();
+        let m = Move::Slide(Direction::Left);
+        let s = next_state(&s, m).unwrap();
 
-        assert_eq!(s2.grid, [
+        assert_eq!(s.grid, [
             [4, 4, 0, 0],
             [8, 0, 0, 0],
             [2, 4, 2, 0],
@@ -306,10 +337,10 @@ mod tests {
             score: 0,
             terminal: false,
         };
-        let m2 = Move::Slide(Direction::Left);
-        let s2 = next_state(&s, m2).unwrap();
+        let m = Move::Slide(Direction::Left);
+        let s = next_state(&s, m).unwrap();
 
-        assert_eq!(s2.grid, [
+        assert_eq!(s.grid, [
             [2, 4, 2, 0],
             [4, 4, 0, 0],
             [2, 4, 2, 0],
@@ -330,10 +361,10 @@ mod tests {
             score: 0,
             terminal: false,
         };
-        let m2 = Move::Slide(Direction::Right);
-        let s2 = next_state(&s, m2).unwrap();
+        let m = Move::Slide(Direction::Right);
+        let s = next_state(&s, m).unwrap();
 
-        assert_eq!(s2.grid, [
+        assert_eq!(s.grid, [
             [0, 2, 4, 2],
             [0, 0, 4, 4],
             [0, 0, 2, 4],
@@ -354,10 +385,10 @@ mod tests {
             score: 0,
             terminal: false,
         };
-        let m2 = Move::Slide(Direction::Right);
-        let s2 = next_state(&s, m2).unwrap();
+        let m = Move::Slide(Direction::Right);
+        let s = next_state(&s, m).unwrap();
 
-        assert_eq!(s2.grid, [
+        assert_eq!(s.grid, [
             [0, 0, 4, 4],
             [0, 0, 0, 8],
             [0, 2, 4, 2],
@@ -378,10 +409,10 @@ mod tests {
             score: 0,
             terminal: false,
         };
-        let m2 = Move::Slide(Direction::Up);
-        let s2 = next_state(&s, m2).unwrap();
+        let m = Move::Slide(Direction::Up);
+        let s = next_state(&s, m).unwrap();
 
-        assert_eq!(s2.grid, [
+        assert_eq!(s.grid, [
             [4, 2, 2, 2],
             [4, 8, 4, 4],
             [0, 0, 2, 4],
@@ -402,10 +433,10 @@ mod tests {
             score: 0,
             terminal: false,
         };
-        let m2 = Move::Slide(Direction::Up);
-        let s2 = next_state(&s, m2).unwrap();
+        let m = Move::Slide(Direction::Up);
+        let s = next_state(&s, m).unwrap();
 
-        assert_eq!(s2.grid, [
+        assert_eq!(s.grid, [
             [8, 0, 4, 0],
             [0, 0, 0, 0],
             [0, 0, 0, 0],
@@ -426,10 +457,10 @@ mod tests {
             score: 0,
             terminal: false,
         };
-        let m2 = Move::Slide(Direction::Down);
-        let s2 = next_state(&s, m2).unwrap();
+        let m = Move::Slide(Direction::Down);
+        let s = next_state(&s, m).unwrap();
 
-        assert_eq!(s2.grid, [
+        assert_eq!(s.grid, [
             [0, 0, 0, 0],
             [0, 0, 2, 2],
             [4, 2, 4, 4],

@@ -1,5 +1,6 @@
-use adversarial_2048::{play, Strategy};
+use adversarial_2048::{Game, human::Human};
 
 fn main() {
-    play(Strategy::Human, Strategy::Human);
+    let mut g = Game::new(Box::new(Human), Box::new(Human));
+    g.play();
 }

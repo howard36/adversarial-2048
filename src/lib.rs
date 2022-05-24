@@ -1,40 +1,44 @@
-mod game;
+mod state;
+pub mod human;
 
-mod search_tree {
-    
+use state::{State, Move, Role};
+
+pub trait Player {
+    fn pick_move(&self, s: &State) -> Move;
+    fn update_move(&self, m: &Move, s: &State);
 }
 
-pub enum Strategy {
-    Human,
-    Random,
-    AI,
+pub struct Game {
+    slider: Box<dyn Player>,
+    placer: Box<dyn Player>,
+    state: State,
+    history: Vec<State>,
 }
 
-struct FullGame {
-    slider: Strategy,
-    putter: Strategy,
-    state: game::State,
-    history: Vec<game::State>,
-}
+impl Game {
+    pub fn new(slider: Box<dyn Player>, placer: Box<dyn Player>) -> Game {
+        Game {
+            slider,
+            placer,
+            state: state::INITIAL_STATE,
+            history: Vec::new(),
+        }
+    }
 
-/*
-fn pick_move(&strategy: Strategy, &s: game::State) -> game::Move {
-    match strategy {
-        Strategy::Human => get_human_move(s),
-        Strategy::Random => get_random_move(s),
-        Strategy::AI => get_ai_move(s),
+    pub fn play(&mut self) {
+        while !self.state.terminal {
+            let m;
+            if self.state.next_to_move == Role::Slider {
+                m = self.slider.pick_move(&self.state);
+            } else {
+                m = self.placer.pick_move(&self.state);
+            }
+            let s = state::next_state(&self.state, &m).unwrap();
+            //self.history.push(old_state);
+            self.slider.update_move(&m, &s);
+            self.placer.update_move(&m, &s);
+            self.state = s;
+        }
     }
 }
 
-fn notify_move(&strategy: Strategy, &m: game::Move, &s: game::State) {
-    match strategy {
-        Strategy::Human => notify_human_move(m, s),
-        Strategy::Random => (),
-        Strategy::AI => notify_ai_move(m),
-    }
-}
-*/
-
-pub fn play(s1: Strategy, s2: Strategy) {
-    println!("Hello world!");
-}
