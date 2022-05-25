@@ -1,13 +1,14 @@
 mod state;
 pub mod human;
+pub mod random;
 
 use state::{State, Move, Role};
 
 pub trait Player {
     fn pick_move(&self, s: &State) -> Move;
 
+    #[allow(unused_variables)]
     fn update_move(&self, m: &Move, s: &State) {
-
     }
 }
 
@@ -29,8 +30,8 @@ impl Game {
     }
 
     pub fn play(&mut self) {
-        while !self.state.terminal {
-            let m = if self.state.next_to_move == Role::Slider {
+        while !self.state.terminal() {
+            let m = if self.state.next_to_move() == Role::Slider {
                 self.slider.pick_move(&self.state)
             } else {
                 self.placer.pick_move(&self.state)

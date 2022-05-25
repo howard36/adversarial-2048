@@ -7,9 +7,9 @@ pub struct Human;
 impl Player for Human {
     fn pick_move(&self, s: &State) -> Move {
         println!("Current state:");
-        state::print_grid(&s.grid);
+        state::print_grid(s.grid());
 
-        if s.next_to_move == Role::Slider {
+        if s.next_to_move() == Role::Slider {
             loop {
                 println!("Enter a direction (u/d/l/r): ");
                 let mut input = String::new();
@@ -57,7 +57,7 @@ impl Player for Human {
                 };
                 println!("{}", y);
 
-                if s.grid[x][y] == 0 {
+                if s.grid()[x][y] == 0 {
                     return Move::Place { x, y, val: 2 };
                 }
             }

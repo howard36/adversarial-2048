@@ -1,4 +1,4 @@
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Copy, Clone)]
 pub enum Role {
     Slider,
     Placer,
@@ -18,10 +18,10 @@ pub enum Move {
 
 #[derive(Debug, PartialEq)]
 pub struct State {
-    pub grid: [[i32; 4]; 4],
-    pub next_to_move: Role,
-    pub score: i32,
-    pub terminal: bool,
+    grid: [[i32; 4]; 4],
+    next_to_move: Role,
+    score: i32,
+    terminal: bool,
 }
 
 pub const INITIAL_STATE: State = State {
@@ -33,6 +33,20 @@ pub const INITIAL_STATE: State = State {
 
 #[derive(Debug)]
 pub struct InvalidMove; // grid stayed the same
+
+impl State {
+    pub fn grid(&self) -> &[[i32; 4]; 4] {
+        &self.grid
+    }
+
+    pub fn next_to_move(&self) -> Role {
+        self.next_to_move
+    }
+
+    pub fn terminal(&self) -> bool {
+        self.terminal
+    }
+}
 
 fn slide_up(s: &State) -> Result<State, InvalidMove> {
     let mut grid = [[0; 4]; 4];
