@@ -5,7 +5,10 @@ use state::{State, Move, Role};
 
 pub trait Player {
     fn pick_move(&self, s: &State) -> Move;
-    fn update_move(&self, m: &Move, s: &State);
+
+    fn update_move(&self, m: &Move, s: &State) {
+
+    }
 }
 
 pub struct Game {
@@ -27,12 +30,11 @@ impl Game {
 
     pub fn play(&mut self) {
         while !self.state.terminal {
-            let m;
-            if self.state.next_to_move == Role::Slider {
-                m = self.slider.pick_move(&self.state);
+            let m = if self.state.next_to_move == Role::Slider {
+                self.slider.pick_move(&self.state)
             } else {
-                m = self.placer.pick_move(&self.state);
-            }
+                self.placer.pick_move(&self.state)
+            };
             let s = state::next_state(&self.state, &m).unwrap();
             //self.history.push(old_state);
             self.slider.update_move(&m, &s);

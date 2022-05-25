@@ -217,7 +217,7 @@ pub fn next_state(s: &State, m: &Move) -> Result<State, InvalidMove> {
             Direction::Left  => slide_left(s),
             Direction::Right => slide_right(s),
         },
-        &Move::Place { x, y, val } => place(s, x, y, val),
+        Move::Place { x, y, val } => place(s, *x, *y, *val),
     }
 }
 
