@@ -1,11 +1,11 @@
+use crate::state::{self, Direction, Move, Role, State};
 use crate::Player;
-use crate::state::{self, State, Move, Direction, Role};
 use std::io;
 
 pub struct Human;
 
 impl Player for Human {
-    fn pick_move(&self, s: &State) -> Move {
+    fn pick_move(&mut self, s: &State) -> Move {
         println!("Current state:");
         state::print_grid(s.grid());
 
@@ -13,7 +13,9 @@ impl Player for Human {
             loop {
                 println!("Enter a direction (u/d/l/r): ");
                 let mut input = String::new();
-                io::stdin().read_line(&mut input).expect("Failed to read input line");
+                io::stdin()
+                    .read_line(&mut input)
+                    .expect("Failed to read input line");
 
                 let dir = match input.trim() {
                     "u" => Direction::Up,
@@ -32,7 +34,9 @@ impl Player for Human {
             loop {
                 println!("Enter a location x y: ");
                 let mut input = String::new();
-                io::stdin().read_line(&mut input).expect("Failed to read input line");
+                io::stdin()
+                    .read_line(&mut input)
+                    .expect("Failed to read input line");
 
                 let mut nums = input.trim().split(' ');
                 println!("{}", input);

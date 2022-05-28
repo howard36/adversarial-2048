@@ -1,15 +1,15 @@
-mod state;
+pub mod ai;
 pub mod human;
 pub mod random;
+mod state;
 
-use state::{State, Move, Role};
+use state::{Move, Role, State};
 
 pub trait Player {
-    fn pick_move(&self, s: &State) -> Move;
+    fn pick_move(&mut self, s: &State) -> Move;
 
     #[allow(unused_variables)]
-    fn update_move(&self, m: &Move, s: &State) {
-    }
+    fn update_move(&mut self, m: &Move, s: &State) {}
 }
 
 pub struct Game {
@@ -42,6 +42,7 @@ impl Game {
             self.placer.update_move(&m, &s);
             self.state = s;
         }
+        println!("Game over! Final state =");
+        state::print_grid(self.state.grid());
     }
 }
-
