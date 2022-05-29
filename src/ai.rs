@@ -110,6 +110,16 @@ fn slide_right(g: &Grid) -> Option<Grid> {
     }
 }
 
+fn place(g: &Grid, x: usize, y: usize, val: u8) -> Option<Grid> {
+    if g[x][y] == 0 {
+        let mut grid = g.clone();
+        grid[x][y] = val;
+        Some(grid)
+    } else {
+        None
+    }
+}
+
 /*
 enum Value {
     Estimate(f64),  // estimate based on searched nodes (with depth cutoff)
@@ -268,7 +278,7 @@ impl Ai {
         let (_, i) = moves
             .iter()
             .enumerate()
-            .filter_map(|(i, m)| self.apply_move(&self.root_key, m).map(|k| (i, k)))
+            .filter_map(|(i, &m)| self.apply_move(&self.root_key, m).map(|k| (i, k)))
             /*
             .map(|(i, &k)| {
                 //let x: () = (i, k);
@@ -282,8 +292,22 @@ impl Ai {
         moves[i]
     }
 
-    fn apply_move(&self, key: &NodeKey, m: &Move) -> Option<NodeKey> {
-        None
+    fn apply_move(&self, key: &NodeKey, m: Move) -> Option<NodeKey> {
+        let NodeKey { turns, grid } = key;
+        match m {
+            Move::Slide(d) => match d {
+                Direction::Up => slide_up(grid),
+                Direction::Down => slide_down(grid),
+                Direction::Left => slide_left(grid),
+                Direction::Right => slide_right(grid),
+            },
+            Move::Place { x, y, val } => place(grid, x, y, (val / 2) as u8), // TODO
+        }
+        .map(|grid| self.sym_map.get(&grid).unwrap())
+        .map(|&grid| NodeKey {
+            turns: *turns,
+            grid,
+        })
     }
 }
 

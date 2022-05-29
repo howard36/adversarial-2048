@@ -36,7 +36,7 @@ impl Game {
             } else {
                 self.placer.pick_move(&self.state)
             };
-            let s = state::next_state(&self.state, &m).unwrap();
+            let s = state::next_state(&self.state, m).unwrap();
             //self.history.push(old_state);
             self.slider.update_move(&m, &s);
             self.placer.update_move(&m, &s);

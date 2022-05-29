@@ -1,4 +1,4 @@
-use crate::state::{self, Direction, Move, Role, State};
+use crate::state::{self, Direction, Move, Role, State, SLIDER_MOVES};
 use crate::Player;
 use itertools::iproduct;
 use rand::prelude::IteratorRandom;
@@ -9,14 +9,9 @@ impl Player for Random {
     fn pick_move(&mut self, s: &State) -> Move {
         let mut rng = rand::thread_rng();
         if s.next_to_move() == Role::Slider {
-            vec![
-                Move::Slide(Direction::Up),
-                Move::Slide(Direction::Down),
-                Move::Slide(Direction::Left),
-                Move::Slide(Direction::Right),
-            ]
+            SLIDER_MOVES
             .into_iter()
-            .filter(|m| state::next_state(s, &m).is_ok())
+            .filter(|&m| state::next_state(s, m).is_ok())
             .choose(&mut rng)
             .unwrap()
         } else {

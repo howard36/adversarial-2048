@@ -26,7 +26,7 @@ impl Player for Human {
                 };
 
                 let m = Move::Slide(dir);
-                if state::next_state(&s, &m).is_ok() {
+                if state::next_state(&s, m).is_ok() {
                     return m;
                 }
             }

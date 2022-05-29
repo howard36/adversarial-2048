@@ -243,7 +243,7 @@ fn place(s: &State, x: usize, y: usize, val: i32) -> Result<State, InvalidMove> 
     }
 }
 
-pub fn next_state(s: &State, m: &Move) -> Result<State, InvalidMove> {
+pub fn next_state(s: &State, m: Move) -> Result<State, InvalidMove> {
     match m {
         Move::Slide(d) => match d {
             Direction::Up => slide_up(s),
@@ -251,7 +251,7 @@ pub fn next_state(s: &State, m: &Move) -> Result<State, InvalidMove> {
             Direction::Left => slide_left(s),
             Direction::Right => slide_right(s),
         },
-        Move::Place { x, y, val } => place(s, *x, *y, *val),
+        Move::Place { x, y, val } => place(s, x, y, val),
     }
 }
 
@@ -296,7 +296,7 @@ mod tests {
     fn place1() {
         let s = INITIAL_STATE;
         let m = Move::Place { x: 1, y: 2, val: 2 };
-        let s = next_state(&s, &m).unwrap();
+        let s = next_state(&s, m).unwrap();
         assert_eq!(
             s.grid,
             [[0, 0, 0, 0], [0, 0, 2, 0], [0, 0, 0, 0], [0, 0, 0, 0],]
@@ -316,9 +316,9 @@ mod tests {
     fn slide_left() {
         let s = INITIAL_STATE;
         let m = Move::Place { x: 1, y: 2, val: 2 };
-        let s = next_state(&s, &m).unwrap();
+        let s = next_state(&s, m).unwrap();
         let m = Move::Slide(Direction::Left);
-        let s = next_state(&s, &m).unwrap();
+        let s = next_state(&s, m).unwrap();
 
         assert_eq!(
             s.grid,
@@ -335,7 +335,7 @@ mod tests {
             terminal: false,
         };
         let m = Move::Slide(Direction::Left);
-        let s = next_state(&s, &m).unwrap();
+        let s = next_state(&s, m).unwrap();
 
         assert_eq!(
             s.grid,
@@ -352,7 +352,7 @@ mod tests {
             terminal: false,
         };
         let m = Move::Slide(Direction::Left);
-        let s = next_state(&s, &m).unwrap();
+        let s = next_state(&s, m).unwrap();
 
         assert_eq!(
             s.grid,
@@ -369,7 +369,7 @@ mod tests {
             terminal: false,
         };
         let m = Move::Slide(Direction::Right);
-        let s = next_state(&s, &m).unwrap();
+        let s = next_state(&s, m).unwrap();
 
         assert_eq!(
             s.grid,
@@ -386,7 +386,7 @@ mod tests {
             terminal: false,
         };
         let m = Move::Slide(Direction::Right);
-        let s = next_state(&s, &m).unwrap();
+        let s = next_state(&s, m).unwrap();
 
         assert_eq!(
             s.grid,
@@ -403,7 +403,7 @@ mod tests {
             terminal: false,
         };
         let m = Move::Slide(Direction::Up);
-        let s = next_state(&s, &m).unwrap();
+        let s = next_state(&s, m).unwrap();
 
         assert_eq!(
             s.grid,
@@ -420,7 +420,7 @@ mod tests {
             terminal: false,
         };
         let m = Move::Slide(Direction::Up);
-        let s = next_state(&s, &m).unwrap();
+        let s = next_state(&s, m).unwrap();
 
         assert_eq!(
             s.grid,
@@ -437,7 +437,7 @@ mod tests {
             terminal: false,
         };
         let m = Move::Slide(Direction::Down);
-        let s = next_state(&s, &m).unwrap();
+        let s = next_state(&s, m).unwrap();
 
         assert_eq!(
             s.grid,
@@ -478,7 +478,7 @@ mod tests {
             terminal: false,
         };
         let m = Move::Place { x: 3, y: 1, val: 4 };
-        let s = next_state(&s, &m).unwrap();
+        let s = next_state(&s, m).unwrap();
 
         assert_eq!(
             s,
