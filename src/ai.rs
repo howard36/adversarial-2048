@@ -214,6 +214,7 @@ impl Ai {
         let NodeKey { turns, grid } = key;
         if depth == 0 {
             return NotNan::new((sign * heuristic(&grid)) as f32).unwrap(); // TODO: optimize leaf case
+            //return NotNan::new((sign * turns) as f32).unwrap(); // TODO: optimize leaf case
         }
 
         let g = match self.sym_map.get(&grid) {
@@ -275,7 +276,7 @@ impl Ai {
                     })
                     .map(|k| (self.node_map.get(&k).unwrap().value, i))
             })
-            .max()
+            .min()
             .unwrap();
         //println!("Best root move idx = {}", i);
         moves[i]
@@ -306,7 +307,7 @@ fn new_node(key: &NodeKey) -> NodeData {
         &PLACER_MOVES
     } else {
         if dead_grid(&key.grid) {
-            println!("Dead grid at {} turns", key.turns);
+            //println!("Dead grid at {} turns", key.turns);
             return NodeData {
                 search_depth: i32::MAX,
                 value: NotNan::new(-1000000.0 + key.turns as f32).unwrap(),
@@ -352,7 +353,7 @@ impl Player for Ai {
         //println!("{:?}", self.root_key.grid);
         // TODO: assert state matches self.root_key.grid
         let sign = 2 * (self.root_key.turns % 2) - 1;
-        let v = self.negamax(self.root_key, 10, sign, NotNan::min_value(), NotNan::max_value());
+        let v = self.negamax(self.root_key, 15, sign, NotNan::min_value(), NotNan::max_value());
         println!("negamax root value = {}", v);
         self.best_root_move()
     }
@@ -372,7 +373,7 @@ fn heuristic(grid: &Grid) -> i32 {
             penalty += (1i32 << grid[j][i]) - (1i32 << grid[j+1][i]).abs();
         }
     }
-    sum * 4 - penalty
+    (sum * 4 - penalty) * 2
 }
 
 // TODO: optimize with bit operations when Grid = u64
