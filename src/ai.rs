@@ -279,12 +279,6 @@ impl Ai {
             .iter()
             .enumerate()
             .filter_map(|(i, &m)| self.apply_move(&self.root_key, m).map(|k| (i, k)))
-            /*
-            .map(|(i, &k)| {
-                //let x: () = (i, k);
-                (i, self.sym_map.get(&k).unwrap())
-            })
-            */
             .map(|(i, k)| (i, self.node_map.get(&k).unwrap()))
             .map(|(i, n)| (n.value, i))
             .max()
@@ -292,6 +286,7 @@ impl Ai {
         moves[i]
     }
 
+    // TODO: this should update turns
     fn apply_move(&self, key: &NodeKey, m: Move) -> Option<NodeKey> {
         let NodeKey { turns, grid } = key;
         match m {
@@ -323,9 +318,23 @@ impl Player for Ai {
     }
 }
 
-// TODO: change return value to iterator
-fn symmetries(grid: Grid) -> Vec<Grid> {
-    vec![]
+// TODO: optimize with bit operations when Grid = u64
+fn symmetries(grid: Grid) -> [Grid; 8] {
+    let mut ret: [Grid; 8] = [[[0u8; 4]; 4]; 8];
+    for i in 0..4 {
+        for j in 0..4 {
+            let num = grid[i][j];
+            ret[0][  i][  j] = num;
+            ret[1][3-i][  j] = num;
+            ret[2][  i][3-j] = num;
+            ret[3][3-i][3-j] = num;
+            ret[4][  j][  i] = num;
+            ret[5][3-j][  i] = num;
+            ret[6][  j][3-i] = num;
+            ret[7][3-j][3-i] = num;
+        }
+    }
+    return ret;
 }
 
 #[cfg(test)]
