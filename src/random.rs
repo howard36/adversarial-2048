@@ -16,7 +16,7 @@ impl Player for Random {
                 .unwrap()
         } else {
             let grid = s.grid();
-            iproduct!(0..4, 0..4, 0..2)
+            iproduct!(0..4, 0..4, 0..1)
                 .filter(|&(i, j, _)| grid[i][j] == 0)
                 .map(|(i, j, k)| Move::Place {
                     x: i,

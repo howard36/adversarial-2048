@@ -2,6 +2,8 @@ use crate::state::{Direction, Move, State, PLACER_MOVES, SLIDER_MOVES};
 use crate::Player;
 use ordered_float::NotNan;
 use std::collections::HashMap;
+use std::cmp;
+use num_traits::bounds::Bounded;
 
 type Grid = [[u8; 4]; 4];
 
@@ -201,16 +203,23 @@ impl Ai {
         }
     }
 
-    fn negamax(&mut self, key: NodeKey, depth: i32, sign: i32) -> NotNan<f32> {
+    fn negamax(
+        &mut self,
+        key: NodeKey,
+        depth: i32,
+        sign: i32,
+        alpha: NotNan<f32>,
+        beta: NotNan<f32>,
+    ) -> NotNan<f32> {
         let NodeKey { turns, grid } = key;
         if depth == 0 {
-            return NotNan::new((sign * turns) as f32).unwrap(); // TODO: optimize leaf case
+            return NotNan::new((sign * heuristic(&grid)) as f32).unwrap(); // TODO: optimize leaf case
         }
 
         let g = match self.sym_map.get(&grid) {
             Some(&g) => g,
             None => {
-                let new_grids = symmetries(grid);
+                let new_grids = symmetries(&grid);
                 let max_grid = *new_grids.iter().max().unwrap();
                 for grid in new_grids {
                     self.sym_map.insert(grid, max_grid);
@@ -218,6 +227,7 @@ impl Ai {
                 max_grid
             }
         };
+        //println!("g = {:?}", g);
         let key = NodeKey { turns, grid: g };
 
         let node = self
@@ -231,13 +241,15 @@ impl Ai {
         }
 
         // TODO: use children.enumerate to save bext move?
-        let value = node
-            .children
-            .clone()
-            .into_iter()
-            .map(|child_key| -self.negamax(child_key, depth - 1, -sign))
-            .max()
-            .unwrap();
+        let mut value = NotNan::min_value();
+        let mut a = alpha;
+        for child_key in node.children.clone() {
+            value = cmp::max(value, -self.negamax(child_key, depth - 1, -sign, -beta, -a));
+            a = cmp::max(a, value);
+            if a>= beta {
+                break;
+            }
+        }
 
         let node = self.node_map.get_mut(&key).unwrap();
         node.value = value;
@@ -265,7 +277,7 @@ impl Ai {
             })
             .max()
             .unwrap();
-        println!("Best root move idx = {}", i);
+        //println!("Best root move idx = {}", i);
         moves[i]
     }
 }
@@ -291,22 +303,47 @@ fn apply_move(key: &NodeKey, m: Move) -> Option<NodeKey> {
 
 fn new_node(key: &NodeKey) -> NodeData {
     let moves: &[Move] = if key.turns % 2 == 0 {
-        // TODO: fast dead check
         &PLACER_MOVES
     } else {
+        if dead_grid(&key.grid) {
+            println!("Dead grid at {} turns", key.turns);
+            return NodeData {
+                search_depth: i32::MAX,
+                value: NotNan::new(-1000000.0 + key.turns as f32).unwrap(),
+                children: vec![],
+            };
+        }
         &SLIDER_MOVES
     };
     let children: Vec<NodeKey> = moves
         .into_iter()
         .filter_map(|&m| apply_move(&key, m))
         .collect();
-    let search_depth = if children.is_empty() { i32::MAX } else { 0 };
 
     NodeData {
-        search_depth,
+        search_depth: 0,
         value: NotNan::new(0.0).unwrap(),
         children,
     }
+}
+
+fn dead_grid(g: &Grid) -> bool {
+    for i in 0..4 {
+        for j in 0..4 {
+            if g[i][j] == 0 {
+                return false;
+            }
+        }
+        for j in 0..3 {
+            if g[i][j] == g[i][j + 1] {
+                return false;
+            }
+            if g[j][i] == g[j + 1][i] {
+                return false;
+            }
+        }
+    }
+    true
 }
 
 impl Player for Ai {
@@ -315,8 +352,8 @@ impl Player for Ai {
         //println!("{:?}", self.root_key.grid);
         // TODO: assert state matches self.root_key.grid
         let sign = 2 * (self.root_key.turns % 2) - 1;
-        let v = self.negamax(self.root_key, 10, sign);
-        //println!("negamax root value = {}", v);
+        let v = self.negamax(self.root_key, 10, sign, NotNan::min_value(), NotNan::max_value());
+        println!("negamax root value = {}", v);
         self.best_root_move()
     }
 
@@ -325,8 +362,21 @@ impl Player for Ai {
     }
 }
 
+fn heuristic(grid: &Grid) -> i32 {
+    let mut sum: i32 = 0;
+    let mut penalty: i32 = 0;
+    for i in 0..4 {
+        for j in 0..3 {
+            sum += 1 << grid[i][j];
+            penalty += (1i32 << grid[i][j]) - (1i32 << grid[i][j+1]).abs();
+            penalty += (1i32 << grid[j][i]) - (1i32 << grid[j+1][i]).abs();
+        }
+    }
+    sum * 4 - penalty
+}
+
 // TODO: optimize with bit operations when Grid = u64
-fn symmetries(grid: Grid) -> [Grid; 8] {
+fn symmetries(grid: &Grid) -> [Grid; 8] {
     let mut ret: [Grid; 8] = [[[0u8; 4]; 4]; 8];
     for i in 0..4 {
         for j in 0..4 {
