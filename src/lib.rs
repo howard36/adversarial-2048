@@ -16,7 +16,7 @@ pub struct Game {
     slider: Box<dyn Player>,
     placer: Box<dyn Player>,
     state: State,
-    history: Vec<State>,
+    //history: Vec<State>,
 }
 
 impl Game {
@@ -25,7 +25,7 @@ impl Game {
             slider,
             placer,
             state: state::INITIAL_STATE,
-            history: Vec::new(),
+            //history: Vec::new(),
         }
     }
 

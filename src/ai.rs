@@ -1,7 +1,6 @@
-use crate::state::{Direction, Move, Role, State, PLACER_MOVES, SLIDER_MOVES};
+use crate::state::{Direction, Move, State, PLACER_MOVES, SLIDER_MOVES};
 use crate::Player;
 use ordered_float::NotNan;
-use std::borrow::Borrow;
 use std::collections::HashMap;
 
 type Grid = [[u8; 4]; 4];
@@ -155,6 +154,7 @@ struct NodeData {
     children: Vec<NodeKey>, // TODO: change to (weak?) pointer
 }
 
+/*
 fn hash_to_grid(hash: u64) -> Grid {
     let mut h = hash;
     let mut grid = [[0; 4]; 4];
@@ -176,29 +176,7 @@ fn grid_to_hash(grid: Grid) -> u64 {
     }
     hash
 }
-
-/*
-fn get_children(node: &Node) {
-    let grid = hash_to_grid(node.hash);
-    if node.next_to_move == Role::Slider {
-        if let Some(new_grid) = slide_up(&grid) {
-            children.push(grid_to_hash(new_grid));
-        }
-    } else {
-
-    }
-}
 */
-
-impl NodeData {
-    fn new(key: &NodeKey) -> NodeData {
-        NodeData {
-            search_depth: 0,
-            value: NotNan::new(0.0).unwrap(),
-            children: vec![], // TODO
-        }
-    }
-}
 
 pub struct Ai {
     // index = depth (root depth is 0)
@@ -242,10 +220,10 @@ impl Ai {
         };
         let key = NodeKey { turns, grid: g };
 
-        let node: &NodeData = self
+        let node = self
             .node_map
             .entry(key)
-            .or_insert_with_key(|key| NodeData::new(key));
+            .or_insert_with_key(|key| new_node(key, &self.sym_map));
 
         if depth <= node.search_depth {
             // already computed
@@ -269,7 +247,6 @@ impl Ai {
     }
 
     fn best_root_move(&self) -> Move {
-        let root_node = self.node_map.get(&self.root_key).unwrap();
         let moves: &[Move] = if self.root_key.turns % 2 == 0 {
             &PLACER_MOVES
         } else {
@@ -278,38 +255,65 @@ impl Ai {
         let (_, i) = moves
             .iter()
             .enumerate()
-            .filter_map(|(i, &m)| self.apply_move(&self.root_key, m).map(|k| (i, k)))
-            .map(|(i, k)| (i, self.node_map.get(&k).unwrap()))
-            .map(|(i, n)| (n.value, i))
+            .filter_map(|(i, &m)| {
+                apply_move(&self.root_key, m)
+                    .map(|k| NodeKey {
+                        turns: k.turns,
+                        grid: *self.sym_map.get(&k.grid).unwrap(),
+                    })
+                    .map(|k| (self.node_map.get(&k).unwrap().value, i))
+            })
             .max()
             .unwrap();
         moves[i]
     }
+}
 
-    // TODO: this should update turns
-    fn apply_move(&self, key: &NodeKey, m: Move) -> Option<NodeKey> {
-        let NodeKey { turns, grid } = key;
-        match m {
-            Move::Slide(d) => match d {
-                Direction::Up => slide_up(grid),
-                Direction::Down => slide_down(grid),
-                Direction::Left => slide_left(grid),
-                Direction::Right => slide_right(grid),
-            },
-            Move::Place { x, y, val } => place(grid, x, y, (val / 2) as u8), // TODO
-        }
-        .map(|grid| self.sym_map.get(&grid).unwrap())
-        .map(|&grid| NodeKey {
-            turns: *turns,
-            grid,
-        })
+// TODO: this should update turns
+// TODO: replace with apply_all_moves
+fn apply_move(key: &NodeKey, m: Move) -> Option<NodeKey> {
+    let NodeKey { turns, grid } = key;
+    match m {
+        Move::Slide(d) => match d {
+            Direction::Up => slide_up(grid),
+            Direction::Down => slide_down(grid),
+            Direction::Left => slide_left(grid),
+            Direction::Right => slide_right(grid),
+        },
+        Move::Place { x, y, val } => place(grid, x, y, (val / 2) as u8), // TODO
+    }
+    .map(|grid| NodeKey {
+        turns: *turns + 1,
+        grid,
+    })
+}
+
+fn new_node(key: &NodeKey, sym_map: &HashMap<Grid, Grid>) -> NodeData {
+    let moves: &[Move] = if key.turns % 2 == 0 {
+        // TODO: fast dead check
+        &PLACER_MOVES
+    } else {
+        &SLIDER_MOVES
+    };
+    let children: Vec<NodeKey> = moves
+        .into_iter()
+        .filter_map(|&m| apply_move(&key, m))
+        .collect();
+    let search_depth = if children.is_empty() { i32::MAX } else { 0 };
+
+    NodeData {
+        search_depth,
+        value: NotNan::new(0.0).unwrap(),
+        children,
     }
 }
 
 impl Player for Ai {
-    fn pick_move(&mut self, s: &State) -> Move {
+    fn pick_move(&mut self, _s: &State) -> Move {
+        // TODO: assert state matches self.root_key.grid
         let sign = 2 * (self.root_key.turns % 2) - 1;
-        self.negamax(self.root_key, 5, sign);
+        let v = self.negamax(self.root_key, 30, sign);
+        println!("negamax root value = {}", v);
         self.best_root_move()
     }
 
@@ -324,14 +328,14 @@ fn symmetries(grid: Grid) -> [Grid; 8] {
     for i in 0..4 {
         for j in 0..4 {
             let num = grid[i][j];
-            ret[0][  i][  j] = num;
-            ret[1][3-i][  j] = num;
-            ret[2][  i][3-j] = num;
-            ret[3][3-i][3-j] = num;
-            ret[4][  j][  i] = num;
-            ret[5][3-j][  i] = num;
-            ret[6][  j][3-i] = num;
-            ret[7][3-j][3-i] = num;
+            ret[0][i][j] = num;
+            ret[1][3 - i][j] = num;
+            ret[2][i][3 - j] = num;
+            ret[3][3 - i][3 - j] = num;
+            ret[4][j][i] = num;
+            ret[5][3 - j][i] = num;
+            ret[6][j][3 - i] = num;
+            ret[7][3 - j][3 - i] = num;
         }
     }
     return ret;

@@ -1,4 +1,4 @@
-use crate::state::{self, Direction, Move, Role, State, SLIDER_MOVES};
+use crate::state::{self, Move, Role, State, SLIDER_MOVES};
 use crate::Player;
 use itertools::iproduct;
 use rand::prelude::IteratorRandom;
@@ -10,10 +10,10 @@ impl Player for Random {
         let mut rng = rand::thread_rng();
         if s.next_to_move() == Role::Slider {
             SLIDER_MOVES
-            .into_iter()
-            .filter(|&m| state::next_state(s, m).is_ok())
-            .choose(&mut rng)
-            .unwrap()
+                .into_iter()
+                .filter(|&m| state::next_state(s, m).is_ok())
+                .choose(&mut rng)
+                .unwrap()
         } else {
             let grid = s.grid();
             iproduct!(0..4, 0..4, 0..2)
