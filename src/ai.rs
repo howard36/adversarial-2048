@@ -223,7 +223,7 @@ impl Ai {
         let node = self
             .node_map
             .entry(key)
-            .or_insert_with_key(|key| new_node(key, &self.sym_map));
+            .or_insert_with_key(|key| new_node(key));
 
         if depth <= node.search_depth {
             // already computed
@@ -265,6 +265,7 @@ impl Ai {
             })
             .max()
             .unwrap();
+        println!("Best root move idx = {}", i);
         moves[i]
     }
 }
@@ -288,7 +289,7 @@ fn apply_move(key: &NodeKey, m: Move) -> Option<NodeKey> {
     })
 }
 
-fn new_node(key: &NodeKey, sym_map: &HashMap<Grid, Grid>) -> NodeData {
+fn new_node(key: &NodeKey) -> NodeData {
     let moves: &[Move] = if key.turns % 2 == 0 {
         // TODO: fast dead check
         &PLACER_MOVES
@@ -310,15 +311,17 @@ fn new_node(key: &NodeKey, sym_map: &HashMap<Grid, Grid>) -> NodeData {
 
 impl Player for Ai {
     fn pick_move(&mut self, _s: &State) -> Move {
+        //println!("{:?}", s.grid());
+        //println!("{:?}", self.root_key.grid);
         // TODO: assert state matches self.root_key.grid
         let sign = 2 * (self.root_key.turns % 2) - 1;
-        let v = self.negamax(self.root_key, 30, sign);
-        println!("negamax root value = {}", v);
+        let v = self.negamax(self.root_key, 10, sign);
+        //println!("negamax root value = {}", v);
         self.best_root_move()
     }
 
-    fn update_move(&mut self, m: &Move, s: &State) {
-        // root = root.children[1]
+    fn update_move(&mut self, m: &Move, _s: &State) {
+        self.root_key = apply_move(&self.root_key, *m).unwrap();
     }
 }
 
