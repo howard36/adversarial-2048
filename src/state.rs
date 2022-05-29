@@ -4,6 +4,7 @@ pub enum Role {
     Placer,
 }
 
+#[derive(Copy, Clone)]
 pub enum Direction {
     Up,
     Down,
@@ -11,6 +12,7 @@ pub enum Direction {
     Right,
 }
 
+#[derive(Copy, Clone)]
 pub enum Move {
     Slide(Direction),
     Place { x: usize, y: usize, val: i32 },
@@ -30,6 +32,32 @@ pub const INITIAL_STATE: State = State {
     score: 0,
     terminal: false,
 };
+
+pub const SLIDER_MOVES: [Move; 4] = [
+    Move::Slide(Direction::Up),
+    Move::Slide(Direction::Left),
+    Move::Slide(Direction::Right),
+    Move::Slide(Direction::Down),
+];
+
+pub const PLACER_MOVES: [Move; 16] = [
+    Move::Place { x: 0, y: 0, val: 2 },
+    Move::Place { x: 0, y: 1, val: 2 },
+    Move::Place { x: 0, y: 2, val: 2 },
+    Move::Place { x: 0, y: 3, val: 2 },
+    Move::Place { x: 1, y: 0, val: 2 },
+    Move::Place { x: 1, y: 1, val: 2 },
+    Move::Place { x: 1, y: 2, val: 2 },
+    Move::Place { x: 1, y: 3, val: 2 },
+    Move::Place { x: 2, y: 0, val: 2 },
+    Move::Place { x: 2, y: 1, val: 2 },
+    Move::Place { x: 2, y: 2, val: 2 },
+    Move::Place { x: 2, y: 3, val: 2 },
+    Move::Place { x: 3, y: 0, val: 2 },
+    Move::Place { x: 3, y: 1, val: 2 },
+    Move::Place { x: 3, y: 2, val: 2 },
+    Move::Place { x: 3, y: 3, val: 2 },
+];
 
 #[derive(Debug)]
 pub struct InvalidMove; // grid stayed the same

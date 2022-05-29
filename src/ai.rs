@@ -1,5 +1,7 @@
-use crate::state::{Move, Role, State, Direction};
+use crate::state::{Direction, Move, Role, State, PLACER_MOVES, SLIDER_MOVES};
 use crate::Player;
+use ordered_float::NotNan;
+use std::borrow::Borrow;
 use std::collections::HashMap;
 
 type Grid = [[u8; 4]; 4];
@@ -121,6 +123,8 @@ struct NodeKey {
     grid: Grid, // TODO: replace this with hash
 }
 
+//impl Borrow<Grid> for Grid {}
+
 struct NodeData {
     //grid_hash: u64, // 4x4 array
     //next_to_move: Role,
@@ -136,7 +140,7 @@ struct NodeData {
     search_depth: i32,
 
     // the final score if optimal players start from this state
-    value: f64,
+    value: NotNan<f32>,
 
     children: Vec<NodeKey>, // TODO: change to (weak?) pointer
 }
@@ -180,7 +184,7 @@ impl NodeData {
     fn new(key: &NodeKey) -> NodeData {
         NodeData {
             search_depth: 0,
-            value: 0f64,
+            value: NotNan::new(0.0).unwrap(),
             children: vec![], // TODO
         }
     }
@@ -209,10 +213,10 @@ impl Ai {
         }
     }
 
-    fn negamax(&mut self, key: NodeKey, depth: i32, sign: i32) -> f64 {
+    fn negamax(&mut self, key: NodeKey, depth: i32, sign: i32) -> NotNan<f32> {
         let NodeKey { turns, grid } = key;
         if depth == 0 {
-            return (sign * turns) as f64; // TODO: optimize leaf case
+            return NotNan::new((sign * turns) as f32).unwrap(); // TODO: optimize leaf case
         }
 
         let g = match self.sym_map.get(&grid) {
@@ -244,7 +248,8 @@ impl Ai {
             .clone()
             .into_iter()
             .map(|child_key| -self.negamax(child_key, depth - 1, -sign))
-            .fold(f64::MIN, f64::max);
+            .max()
+            .unwrap();
 
         let node = self.node_map.get_mut(&key).unwrap();
         node.value = value;
@@ -254,17 +259,37 @@ impl Ai {
     }
 
     fn best_root_move(&self) -> Move {
-        Move::Slide(Direction::Up)
+        let root_node = self.node_map.get(&self.root_key).unwrap();
+        let moves: &[Move] = if self.root_key.turns % 2 == 0 {
+            &PLACER_MOVES
+        } else {
+            &SLIDER_MOVES
+        };
+        let (_, i) = moves
+            .iter()
+            .enumerate()
+            .filter_map(|(i, m)| self.apply_move(&self.root_key, m).map(|k| (i, k)))
+            /*
+            .map(|(i, &k)| {
+                //let x: () = (i, k);
+                (i, self.sym_map.get(&k).unwrap())
+            })
+            */
+            .map(|(i, k)| (i, self.node_map.get(&k).unwrap()))
+            .map(|(i, n)| (n.value, i))
+            .max()
+            .unwrap();
+        moves[i]
+    }
+
+    fn apply_move(&self, key: &NodeKey, m: &Move) -> Option<NodeKey> {
+        None
     }
 }
 
 impl Player for Ai {
     fn pick_move(&mut self, s: &State) -> Move {
-        let sign = if s.next_to_move() == Role::Slider {
-            1
-        } else {
-            -1
-        };
+        let sign = 2 * (self.root_key.turns % 2) - 1;
         self.negamax(self.root_key, 5, sign);
         self.best_root_move()
     }
