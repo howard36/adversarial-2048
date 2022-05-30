@@ -196,43 +196,45 @@ impl Ai {
         }
     }
 
-    fn negamax(&mut self, key: NodeKey, depth: i32, sign: i32, alpha: i32, beta: i32) -> i32 {
-        let NodeKey { turns, grid } = key;
-        if depth == 0 {
-            // TODO: optimize leaf case
-            return sign * heuristic(&grid);
-            //return NotNan::new((sign * turns) as f32).unwrap(); // TODO: optimize leaf case
-        }
-
-        let g = match self.sym_map.get(&grid) {
+    fn flip_grid(&mut self, grid: &Grid) -> Grid {
+        match self.sym_map.get(grid) {
             Some(&g) => g,
             None => {
-                let new_grids = symmetries(&grid);
+                let new_grids = symmetries(grid);
                 let max_grid = *new_grids.iter().max().unwrap();
-                for grid in new_grids {
-                    self.sym_map.insert(grid, max_grid);
+                for flipped_grid in new_grids {
+                    self.sym_map.insert(flipped_grid, max_grid);
                 }
                 max_grid
             }
-        };
-        //println!("g = {:?}", g);
-        let key = NodeKey { turns, grid: g };
+        }
+    }
 
-        let node = self
-            .node_map
-            .entry(key)
-            .or_insert_with_key(|key| new_node(key));
+    fn negamax(&mut self, key: NodeKey, depth: i32, alpha: i32, beta: i32) -> i32 {
+        let max_grid = self.flip_grid(&key.grid);
+        let key = NodeKey { turns: key.turns, grid: max_grid };
+        // TODO: this is computing children even when depth = 0
+        // replace with lazy children
+        let node = self.node_map.entry(key).or_insert_with_key(|key| new_node(key));
 
         if depth <= node.search_depth {
             // already computed
             return node.value;
         }
+        if depth == 0 {
+            // TODO: optimize leaf case
+            let sign = 2 * (key.turns % 2) - 1;
+            node.value = sign * heuristic(&max_grid);
+            node.search_depth = 0;
+            return node.value;
+        }
 
         // TODO: use children.enumerate to save bext move? (or save ordering)
-        let mut value = -i32::MAX;
+        let mut value = -i32::MAX; // i32::MIN overflows when negated
         let mut a = alpha;
+        // TODO: try let vec: &Vec = &node.children?
         for child_key in node.children.clone() {
-            value = cmp::max(value, -self.negamax(child_key, depth - 1, -sign, -beta, -a));
+            value = cmp::max(value, -self.negamax(child_key, depth - 1, -beta, -a));
             a = cmp::max(a, value);
             if a >= beta {
                 break;
@@ -246,6 +248,7 @@ impl Ai {
         value
     }
 
+    // TODO: rewrite this to check child_value == node_value for each child
     fn best_root_move(&self) -> Move {
         let moves: &[Move] = if self.root_key.turns % 2 == 0 {
             &PLACER_MOVES
@@ -296,22 +299,22 @@ fn new_node(key: &NodeKey) -> NodeData {
         if dead_grid(&key.grid) {
             //println!("Dead grid at {} turns", key.turns);
             return NodeData {
-                search_depth: i32::MAX,
+                search_depth: i32::MAX, // exact value known
                 value: -1000000 + key.turns,
                 children: vec![],
             };
         }
         &SLIDER_MOVES
     };
+    // TODO: lazy child init (None, Some(Vec<NodeKey>))
     let children: Vec<NodeKey> = moves
         .into_iter()
         .filter_map(|&m| apply_move(&key, m))
         .collect();
 
     NodeData {
-        // TODO: try depth = -1
-        search_depth: 0,
-        value: 0,
+        search_depth: -1, // no heuristic calculated yet (value == None)
+        value: 0, // shouldn't matter (TODO: test this)
         children,
     }
 }
@@ -340,8 +343,7 @@ impl Player for Ai {
         //println!("{:?}", s.grid());
         //println!("{:?}", self.root_key.grid);
         // TODO: assert state matches self.root_key.grid
-        let sign = 2 * (self.root_key.turns % 2) - 1;
-        let v = self.negamax(self.root_key, 15, sign, -i32::MAX, i32::MAX);
+        let v = self.negamax(self.root_key, 15, -i32::MAX, i32::MAX);
         println!("negamax root value = {}, turns = {}", v, self.root_key.turns);
         self.best_root_move()
     }
