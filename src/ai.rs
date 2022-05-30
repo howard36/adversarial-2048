@@ -1,9 +1,9 @@
 use crate::state::{Direction, Move, State, PLACER_MOVES, SLIDER_MOVES};
 use crate::Player;
-use ordered_float::NotNan;
-use std::collections::HashMap;
+//use ordered_float::NotNan;
 use std::cmp;
-use num_traits::bounds::Bounded;
+use std::collections::HashMap;
+//use num_traits::bounds::Bounded;
 
 type Grid = [[u8; 4]; 4];
 
@@ -121,13 +121,6 @@ fn place(g: &Grid, x: usize, y: usize, val: u8) -> Option<Grid> {
     }
 }
 
-/*
-enum Value {
-    Estimate(f64),  // estimate based on searched nodes (with depth cutoff)
-    Exact(u32),     // exact value of game state, after exhausting subtree
-}
-*/
-
 #[derive(Hash, Eq, PartialEq, Debug, Copy, Clone)]
 struct NodeKey {
     turns: i32,
@@ -151,7 +144,7 @@ struct NodeData {
     search_depth: i32,
 
     // the final score if optimal players start from this state
-    value: NotNan<f32>,
+    value: i32,
 
     children: Vec<NodeKey>, // TODO: change to (weak?) pointer
 }
@@ -203,17 +196,11 @@ impl Ai {
         }
     }
 
-    fn negamax(
-        &mut self,
-        key: NodeKey,
-        depth: i32,
-        sign: i32,
-        alpha: NotNan<f32>,
-        beta: NotNan<f32>,
-    ) -> NotNan<f32> {
+    fn negamax(&mut self, key: NodeKey, depth: i32, sign: i32, alpha: i32, beta: i32) -> i32 {
         let NodeKey { turns, grid } = key;
         if depth == 0 {
-            return NotNan::new((sign * heuristic(&grid)) as f32).unwrap(); // TODO: optimize leaf case
+            // TODO: optimize leaf case
+            return sign * heuristic(&grid);
             //return NotNan::new((sign * turns) as f32).unwrap(); // TODO: optimize leaf case
         }
 
@@ -241,13 +228,13 @@ impl Ai {
             return node.value;
         }
 
-        // TODO: use children.enumerate to save bext move?
-        let mut value = NotNan::min_value();
+        // TODO: use children.enumerate to save bext move? (or save ordering)
+        let mut value = -i32::MAX;
         let mut a = alpha;
         for child_key in node.children.clone() {
             value = cmp::max(value, -self.negamax(child_key, depth - 1, -sign, -beta, -a));
             a = cmp::max(a, value);
-            if a>= beta {
+            if a >= beta {
                 break;
             }
         }
@@ -310,7 +297,7 @@ fn new_node(key: &NodeKey) -> NodeData {
             //println!("Dead grid at {} turns", key.turns);
             return NodeData {
                 search_depth: i32::MAX,
-                value: NotNan::new(-1000000.0 + key.turns as f32).unwrap(),
+                value: -1000000 + key.turns,
                 children: vec![],
             };
         }
@@ -322,8 +309,9 @@ fn new_node(key: &NodeKey) -> NodeData {
         .collect();
 
     NodeData {
+        // TODO: try depth = -1
         search_depth: 0,
-        value: NotNan::new(0.0).unwrap(),
+        value: 0,
         children,
     }
 }
@@ -353,8 +341,8 @@ impl Player for Ai {
         //println!("{:?}", self.root_key.grid);
         // TODO: assert state matches self.root_key.grid
         let sign = 2 * (self.root_key.turns % 2) - 1;
-        let v = self.negamax(self.root_key, 15, sign, NotNan::min_value(), NotNan::max_value());
-        println!("negamax root value = {}", v);
+        let v = self.negamax(self.root_key, 15, sign, -i32::MAX, i32::MAX);
+        println!("negamax root value = {}, turns = {}", v, self.root_key.turns);
         self.best_root_move()
     }
 
@@ -365,12 +353,17 @@ impl Player for Ai {
 
 fn heuristic(grid: &Grid) -> i32 {
     let mut sum: i32 = 0;
+    for i in 0..4 {
+        for j in 0..4 {
+            sum += 1 << grid[i][j];
+        }
+    }
+
     let mut penalty: i32 = 0;
     for i in 0..4 {
         for j in 0..3 {
-            sum += 1 << grid[i][j];
-            penalty += (1i32 << grid[i][j]) - (1i32 << grid[i][j+1]).abs();
-            penalty += (1i32 << grid[j][i]) - (1i32 << grid[j+1][i]).abs();
+            penalty += (1i32 << grid[i][j]) - (1i32 << grid[i][j + 1]).abs();
+            penalty += (1i32 << grid[j][i]) - (1i32 << grid[j + 1][i]).abs();
         }
     }
     (sum * 4 - penalty) * 2
