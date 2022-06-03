@@ -277,15 +277,19 @@ fn display_int(n: i32) -> String {
 
 pub fn print_grid(grid: &[[i32; 4]; 4]) {
     for i in 0..4 {
-        println!("---------------------");
-        println!("|    |    |    |    |");
+        println!("-------------------------");
+        println!("|     |     |     |     |");
         for j in 0..4 {
-            print!("|{}", display_int(grid[i][j]));
+            if grid[i][j] > 0 {
+                print!("|{:^5}", grid[i][j]);
+            } else {
+                print!("|     ");
+            }
         }
         println!("|");
-        println!("|    |    |    |    |");
+        println!("|     |     |     |     |");
     }
-    println!("---------------------");
+    println!("-------------------------");
 }
 
 #[cfg(test)]

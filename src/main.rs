@@ -1,7 +1,8 @@
 use adversarial_2048::{ai::Ai, human::Human, random::Random, Game};
 
 fn main() {
-    //let mut g = Game::new(Box::new(Ai::new()), Box::new(Random));
-    let mut g = Game::new(Box::new(Random), Box::new(Ai::new()));
+    let slider = Box::new(Human);
+    let placer = Box::new(Ai::new());
+    let mut g = Game::new(slider, placer);
     g.play();
 }

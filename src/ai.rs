@@ -263,7 +263,7 @@ impl Ai {
                 let key = NodeKey { turns: key.turns, grid: max_grid };
                 let child_node = self.node_map.get(&key).unwrap();
                 let child_value = -child_node.value;
-                println!("value = {child_value}");
+                //println!("value = {child_value}");
                 if child_value > best_value {
                     best_value = child_value;
                     best_move = *m;
@@ -344,7 +344,7 @@ impl Player for Ai {
         //println!("{:?}", s.grid());
         //println!("{:?}", self.root_key.grid);
         // TODO: assert state matches self.root_key.grid
-        let v = self.negamax(self.root_key, 15, -i32::MAX, i32::MAX);
+        let v = self.negamax(self.root_key, 13, -i32::MAX, i32::MAX);
         println!("negamax root value = {}, turns = {}", v, self.root_key.turns);
         self.best_root_move()
     }
@@ -363,27 +363,22 @@ fn heuristic(grid: &Grid) -> i32 {
     }
 
     let mut penalty: i32 = 0;
-    const adj_diff: i32 = 2;
-    const v_rev: i32 = 5;
-    const h_rev: i32 = 3;
+    const H_DIFF: i32 = 1;
+    const V_DIFF: i32 = 1;
+    const H_REV: i32 = 3;
+    const V_REV: i32 = 6;
     // horizontal differences
     for i in 0..4 {
         for j in 0..3 {
             let d = sq[i][j+1] - sq[i][j];
-            penalty += adj_diff * d.abs();
-            if d > 0 {
-                penalty += h_rev * d;
-            }
+            penalty += (2 * H_DIFF + H_REV) * d.abs() + H_REV * d;
         }
     }
     // vertical differences
     for i in 0..3 {
         for j in 0..4 {
             let d = sq[i+1][j] - sq[i][j];
-            penalty += adj_diff * d.abs();
-            if d > 0 {
-                penalty += v_rev * d;
-            }
+            penalty += (2 * V_DIFF + V_REV) * d.abs() + V_REV * d;
         }
     }
     -penalty
