@@ -248,7 +248,6 @@ impl Ai {
         value
     }
 
-    // TODO: rewrite this to check child_value == node_value for each child
     fn best_root_move(&self) -> Move {
         let moves: &[Move] = if self.root_key.turns % 2 == 0 {
             &PLACER_MOVES
@@ -263,14 +262,16 @@ impl Ai {
                 let max_grid = *self.sym_map.get(&key.grid).unwrap();
                 let key = NodeKey { turns: key.turns, grid: max_grid };
                 let child_node = self.node_map.get(&key).unwrap();
-                if child_node.value > best_value {
-                    best_value = child_node.value;
+                let child_value = -child_node.value;
+                println!("value = {child_value}");
+                if child_value > best_value {
+                    best_value = child_value;
                     best_move = *m;
                 }
             }
         }
         best_move
-   }
+    }
 }
 
 // TODO: this should update turns
@@ -343,7 +344,7 @@ impl Player for Ai {
         //println!("{:?}", s.grid());
         //println!("{:?}", self.root_key.grid);
         // TODO: assert state matches self.root_key.grid
-        let v = self.negamax(self.root_key, 12, -i32::MAX, i32::MAX);
+        let v = self.negamax(self.root_key, 15, -i32::MAX, i32::MAX);
         println!("negamax root value = {}, turns = {}", v, self.root_key.turns);
         self.best_root_move()
     }
@@ -354,21 +355,38 @@ impl Player for Ai {
 }
 
 fn heuristic(grid: &Grid) -> i32 {
-    let mut sum: i32 = 0;
+    let mut sq = [[0; 4]; 4];
     for i in 0..4 {
         for j in 0..4 {
-            sum += 1 << grid[i][j];
+            sq[i][j] = (grid[i][j] * grid[i][j]) as i32;
         }
     }
 
     let mut penalty: i32 = 0;
+    const adj_diff: i32 = 2;
+    const v_rev: i32 = 5;
+    const h_rev: i32 = 3;
+    // horizontal differences
     for i in 0..4 {
         for j in 0..3 {
-            penalty += (1i32 << grid[i][j]) - (1i32 << grid[i][j + 1]).abs();
-            penalty += (1i32 << grid[j][i]) - (1i32 << grid[j + 1][i]).abs();
+            let d = sq[i][j+1] - sq[i][j];
+            penalty += adj_diff * d.abs();
+            if d > 0 {
+                penalty += h_rev * d;
+            }
         }
     }
-    (sum * 4 - penalty) * 2
+    // vertical differences
+    for i in 0..3 {
+        for j in 0..4 {
+            let d = sq[i+1][j] - sq[i][j];
+            penalty += adj_diff * d.abs();
+            if d > 0 {
+                penalty += v_rev * d;
+            }
+        }
+    }
+    -penalty
 }
 
 // TODO: optimize with bit operations when Grid = u64
