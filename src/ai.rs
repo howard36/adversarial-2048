@@ -255,22 +255,22 @@ impl Ai {
         } else {
             &SLIDER_MOVES
         };
-        let (_, i) = moves
-            .iter()
-            .enumerate()
-            .filter_map(|(i, &m)| {
-                apply_move(&self.root_key, m)
-                    .map(|k| NodeKey {
-                        turns: k.turns,
-                        grid: *self.sym_map.get(&k.grid).unwrap(),
-                    })
-                    .map(|k| (self.node_map.get(&k).unwrap().value, i))
-            })
-            .min()
-            .unwrap();
-        //println!("Best root move idx = {}", i);
-        moves[i]
-    }
+
+        let mut best_value = i32::MIN;
+        let mut best_move = moves[0];
+        for m in moves {
+            if let Some(key) = apply_move(&self.root_key, *m) {
+                let max_grid = *self.sym_map.get(&key.grid).unwrap();
+                let key = NodeKey { turns: key.turns, grid: max_grid };
+                let child_node = self.node_map.get(&key).unwrap();
+                if child_node.value > best_value {
+                    best_value = child_node.value;
+                    best_move = *m;
+                }
+            }
+        }
+        best_move
+   }
 }
 
 // TODO: this should update turns
@@ -343,7 +343,7 @@ impl Player for Ai {
         //println!("{:?}", s.grid());
         //println!("{:?}", self.root_key.grid);
         // TODO: assert state matches self.root_key.grid
-        let v = self.negamax(self.root_key, 15, -i32::MAX, i32::MAX);
+        let v = self.negamax(self.root_key, 12, -i32::MAX, i32::MAX);
         println!("negamax root value = {}, turns = {}", v, self.root_key.turns);
         self.best_root_move()
     }
