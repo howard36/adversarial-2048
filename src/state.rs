@@ -4,7 +4,7 @@ pub enum Role {
     Placer,
 }
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug)]
 pub enum Direction {
     Up,
     Down,
@@ -12,7 +12,7 @@ pub enum Direction {
     Right,
 }
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug)]
 pub enum Move {
     Slide(Direction),
     Place { x: usize, y: usize, val: i32 },
@@ -253,26 +253,6 @@ pub fn next_state(s: &State, m: Move) -> Result<State, InvalidMove> {
         },
         Move::Place { x, y, val } => place(s, x, y, val),
     }
-}
-
-fn display_int(n: i32) -> String {
-    String::from(match n {
-        0 => "    ",
-        2 => "  2 ",
-        4 => "  4 ",
-        8 => "  8 ",
-        16 => " 16 ",
-        32 => " 32 ",
-        64 => " 64 ",
-        128 => " 128",
-        256 => " 256",
-        512 => " 512",
-        1024 => "1024",
-        2048 => "2048",
-        4096 => "4096",
-        8192 => "8192",
-        _ => unimplemented!(),
-    })
 }
 
 pub fn print_grid(grid: &[[i32; 4]; 4]) {

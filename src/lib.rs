@@ -41,6 +41,7 @@ impl Game {
             self.slider.update_move(&m, &s);
             self.placer.update_move(&m, &s);
             self.state = s;
+            state::print_grid(self.state.grid());
         }
         println!("Game over! Final state =");
         state::print_grid(self.state.grid());

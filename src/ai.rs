@@ -1,9 +1,7 @@
 use crate::state::{Direction, Move, State, PLACER_MOVES, SLIDER_MOVES};
 use crate::Player;
-//use ordered_float::NotNan;
 use std::cmp;
 use std::collections::HashMap;
-//use num_traits::bounds::Bounded;
 
 type Grid = [[u8; 4]; 4];
 
@@ -122,77 +120,62 @@ fn place(g: &Grid, x: usize, y: usize, val: u8) -> Option<Grid> {
 }
 
 #[derive(Hash, Eq, PartialEq, Debug, Copy, Clone)]
-struct NodeKey {
+pub struct NodeKey {
     turns: i32,
     grid: Grid, // TODO: replace this with hash
 }
 
-//impl Borrow<Grid> for Grid {}
-
+#[derive(Debug)]
 struct NodeData {
-    //grid_hash: u64, // 4x4 array
-    //next_to_move: Role,
-
-    // also the score of this node (for Slider)
-    //depth: u32,
-
-    // all nodes in the subtree up to this depth have been searched
-    // used for iterative deepening and memoized values for certain depths
-    // if negamax_depth <= search_depth, just return the saved value
-    // if this is a terminal node, set search_depth to infinity
-    // search_depth = 0 if only this node has been visited
+    // All nodes in the subtree up to this depth have been searched
+    // Used for iterative deepening and memoized values for certain depths
+    // If negamax_depth <= search_depth, just return the saved value
+    // If this is a terminal node, set search_depth to infinity
+    // search_depth = 0 if no children have been visited
     search_depth: i32,
 
     // the final score if optimal players start from this state
     value: i32,
 
-    children: Vec<NodeKey>, // TODO: change to (weak?) pointer
-}
+    // unflipped keys
+    children: Vec<NodeKey>,
 
-/*
-fn hash_to_grid(hash: u64) -> Grid {
-    let mut h = hash;
-    let mut grid = [[0; 4]; 4];
-    for i in 0..4 {
-        for j in 0..4 {
-            grid[i][j] = (h % 16) as u8;
-            h /= 16;
-        }
-    }
-    grid
+    // the best child, based on previous run of iterative deepening
+    // None if not yet computed
+    best_child: Option<NodeKey>,
 }
-
-fn grid_to_hash(grid: Grid) -> u64 {
-    let mut hash = 0;
-    for i in 0..4 {
-        for j in 0..4 {
-            hash += (grid[i][j] as u64) << (4 * (4 * i + j));
-        }
-    }
-    hash
-}
-*/
 
 pub struct Ai {
     // index = depth (root depth is 0)
     // even depth -> Placer, odd depth -> Slider
-    // All scores will be odd, because only the Placer can end the game
     // also encodes symmetry: 8 keys map to the same node
     node_map: HashMap<NodeKey, NodeData>,
     sym_map: HashMap<Grid, Grid>,
     root_key: NodeKey,
+    search_depth: i32,
 }
 
 impl Ai {
-    pub fn new() -> Ai {
+    pub fn new(search_depth: i32) -> Ai {
         let root_key = NodeKey {
             turns: 0,
             grid: [[0u8; 4]; 4],
+            /*
+            turns: 5023,
+            grid: [
+                [5, 9, 10, 11],
+                [4, 6, 8, 10],
+                [1, 3, 4, 2],
+                [4, 0, 0, 1],
+            ],
+            */
         };
+
         Ai {
             node_map: HashMap::new(),
             sym_map: HashMap::new(),
             root_key,
+            search_depth,
         }
     }
 
@@ -200,6 +183,7 @@ impl Ai {
         match self.sym_map.get(grid) {
             Some(&g) => g,
             None => {
+                // TODO: change max to include 0,0 + 0,1
                 let new_grids = symmetries(grid);
                 let max_grid = *new_grids.iter().max().unwrap();
                 for flipped_grid in new_grids {
@@ -211,11 +195,23 @@ impl Ai {
     }
 
     fn negamax(&mut self, key: NodeKey, depth: i32, alpha: i32, beta: i32) -> i32 {
+        /*
+        let DEBUG = key == NodeKey { turns: 5026, grid: [[11, 10, 9, 5], [10, 8, 6, 4], [2, 4, 3, 1], [0, 0, 2, 4]] };
+        if DEBUG {
+            println!(">>> Negamax at key {key:?}, depth {depth}, ({alpha}, {beta})");
+        }
+        */
         let max_grid = self.flip_grid(&key.grid);
-        let key = NodeKey { turns: key.turns, grid: max_grid };
+        let key = NodeKey {
+            turns: key.turns,
+            grid: max_grid,
+        };
         // TODO: this is computing children even when depth = 0
         // replace with lazy children
-        let node = self.node_map.entry(key).or_insert_with_key(|key| new_node(key));
+        let node = self
+            .node_map
+            .entry(key)
+            .or_insert_with_key(|key| new_node(key));
 
         if depth <= node.search_depth {
             // already computed
@@ -232,18 +228,24 @@ impl Ai {
         // TODO: use children.enumerate to save bext move? (or save ordering)
         let mut value = -i32::MAX; // i32::MIN overflows when negated
         let mut a = alpha;
+        let mut best_child = None;
         // TODO: try let vec: &Vec = &node.children?
         for child_key in node.children.clone() {
-            value = cmp::max(value, -self.negamax(child_key, depth - 1, -beta, -a));
-            a = cmp::max(a, value);
-            if a >= beta {
-                break;
+            let v = -self.negamax(child_key, depth - 1, -beta, -a);
+            if v > value {
+                best_child = Some(child_key);
+                value = v;
+                a = cmp::max(a, value);
+                if a >= beta {
+                    break;
+                }
             }
         }
 
         let node = self.node_map.get_mut(&key).unwrap();
         node.value = value;
         node.search_depth = depth;
+        node.best_child = best_child;
 
         value
     }
@@ -255,22 +257,47 @@ impl Ai {
             &SLIDER_MOVES
         };
 
-        let mut best_value = i32::MIN;
+        let max_grid = *self.sym_map.get(&self.root_key.grid).unwrap();
+        let key = NodeKey {
+            turns: self.root_key.turns,
+            grid: max_grid,
+        };
+        let root_node = self.node_map.get(&key).unwrap();
+        let best_child = root_node.best_child.unwrap();
+        let max_grid = *self.sym_map.get(&best_child.grid).unwrap();
+        let best_child_flipped = NodeKey {
+            turns: best_child.turns,
+            grid: max_grid,
+        };
+
         let mut best_move = moves[0];
         for m in moves {
             if let Some(key) = apply_move(&self.root_key, *m) {
                 let max_grid = *self.sym_map.get(&key.grid).unwrap();
-                let key = NodeKey { turns: key.turns, grid: max_grid };
+                let key = NodeKey {
+                    turns: key.turns,
+                    grid: max_grid,
+                };
                 let child_node = self.node_map.get(&key).unwrap();
                 let child_value = -child_node.value;
-                //println!("value = {child_value}");
-                if child_value > best_value {
-                    best_value = child_value;
+                println!("{m:?}, value = {child_value}");
+                if key == best_child_flipped {
                     best_move = *m;
                 }
             }
         }
         best_move
+    }
+
+    pub fn print_node(&self, key: NodeKey) {
+        println!("printing node {key:?}");
+        let max_grid = *self.sym_map.get(&key.grid).unwrap();
+        let key = NodeKey {
+            turns: key.turns,
+            grid: max_grid,
+        };
+        let child_node = self.node_map.get(&key).unwrap();
+        println!("{child_node:?}");
     }
 }
 
@@ -303,6 +330,7 @@ fn new_node(key: &NodeKey) -> NodeData {
                 search_depth: i32::MAX, // exact value known
                 value: -1000000 + key.turns,
                 children: vec![],
+                best_child: None,
             };
         }
         &SLIDER_MOVES
@@ -315,8 +343,9 @@ fn new_node(key: &NodeKey) -> NodeData {
 
     NodeData {
         search_depth: -1, // no heuristic calculated yet (value == None)
-        value: 0, // shouldn't matter (TODO: test this)
+        value: 0,         // shouldn't matter (TODO: test this)
         children,
+        best_child: None,
     }
 }
 
@@ -341,16 +370,18 @@ fn dead_grid(g: &Grid) -> bool {
 
 impl Player for Ai {
     fn pick_move(&mut self, _s: &State) -> Move {
-        //println!("{:?}", s.grid());
-        //println!("{:?}", self.root_key.grid);
         // TODO: assert state matches self.root_key.grid
-        let v = self.negamax(self.root_key, 13, -i32::MAX, i32::MAX);
-        println!("negamax root value = {}, turns = {}", v, self.root_key.turns);
+        let v = self.negamax(self.root_key, self.search_depth, -i32::MAX, i32::MAX);
+        println!(
+            "negamax root value = {}, turns = {}",
+            v, self.root_key.turns
+        );
         self.best_root_move()
     }
 
     fn update_move(&mut self, m: &Move, _s: &State) {
         self.root_key = apply_move(&self.root_key, *m).unwrap();
+        println!("{:?}", self.root_key);
     }
 }
 
@@ -370,14 +401,14 @@ fn heuristic(grid: &Grid) -> i32 {
     // horizontal differences
     for i in 0..4 {
         for j in 0..3 {
-            let d = sq[i][j+1] - sq[i][j];
+            let d = sq[i][j + 1] - sq[i][j];
             penalty += (2 * H_DIFF + H_REV) * d.abs() + H_REV * d;
         }
     }
     // vertical differences
     for i in 0..3 {
         for j in 0..4 {
-            let d = sq[i+1][j] - sq[i][j];
+            let d = sq[i + 1][j] - sq[i][j];
             penalty += (2 * V_DIFF + V_REV) * d.abs() + V_REV * d;
         }
     }
@@ -407,11 +438,34 @@ fn symmetries(grid: &Grid) -> [Grid; 8] {
 mod tests {
     use super::*;
 
+    /*
     #[test]
     fn hashing() {
         let hash1 = 12345;
         let grid = hash_to_grid(hash1);
         let hash2 = grid_to_hash(grid);
         assert_eq!(hash1, hash2);
+    }
+    */
+    use crate::state::INITIAL_STATE;
+    
+    #[test]
+    fn predict_death() {
+        let s = INITIAL_STATE;
+        let mut ai = Ai::new(13);
+        let m = ai.pick_move(&s);
+        //let m = Move::Slide(Direction::Left);
+        println!("chosen move: {:?}", m);
+        ai.update_move(&m, &s);
+        ai.update_move(&Move::Place { x: 3, y: 2, val: 2 }, &s);
+        let m = ai.pick_move(&s); // wrong choice
+        println!("chosen move: {:?}", m);
+        ai.print_node(NodeKey { turns: 5025, grid: [[5, 9, 10, 11], [4, 6, 8, 10], [1, 3, 4, 2], [4, 1, 1, 0]] });
+        ai.print_node(NodeKey { turns: 5026, grid: [[11, 10, 9, 5], [10, 8, 6, 4], [2, 4, 3, 1], [0, 0, 2, 4]] });
+        //ai.print_node(NodeKey { turns: 5027, grid: [[11, 10, 9, 5], [10, 8, 6, 4], [2, 4, 3, 1], [0, 1, 2, 4]] });
+        ai.print_node(NodeKey { turns: 5027, grid: [[11, 10, 9, 5], [10, 8, 6, 4], [2, 4, 3, 1], [1, 0, 2, 4]] });
+        ai.update_move(&m, &s);
+        let m = ai.pick_move(&s);
+        println!("chosen move: {:?}", m);
     }
 }
