@@ -5,6 +5,8 @@ use std::collections::HashMap;
 
 type Grid = [[u8; 4]; 4];
 
+const TURNS_MOD: i32 = 64;
+
 fn slide_up(g: &Grid) -> Option<Grid> {
     let mut grid = [[0; 4]; 4];
     for i in 0..4 {
@@ -149,8 +151,8 @@ pub struct Ai {
     // index = depth (root depth is 0)
     // even depth -> Placer, odd depth -> Slider
     // also encodes symmetry: 8 keys map to the same node
-    node_map: HashMap<NodeKey, NodeData>,
-    sym_map: HashMap<Grid, Grid>,
+    sym_map: Vec<HashMap<Grid, Grid>>,
+    node_map: Vec<HashMap<Grid, NodeData>>,
     root_key: NodeKey,
     search_depth: i32,
 }
@@ -160,58 +162,49 @@ impl Ai {
         let root_key = NodeKey {
             turns: 0,
             grid: [[0u8; 4]; 4],
-            /*
-            turns: 5023,
-            grid: [
-                [5, 9, 10, 11],
-                [4, 6, 8, 10],
-                [1, 3, 4, 2],
-                [4, 0, 0, 1],
-            ],
-            */
         };
+        let mut sym_map = Vec::new();
+        let mut node_map = Vec::new();
+        for _ in 0..TURNS_MOD {
+            sym_map.push(HashMap::new());
+            node_map.push(HashMap::new());
+        }
 
         Ai {
-            node_map: HashMap::new(),
-            sym_map: HashMap::new(),
+            sym_map,
+            node_map,
             root_key,
             search_depth,
         }
     }
 
-    fn flip_grid(&mut self, grid: &Grid) -> Grid {
-        match self.sym_map.get(grid) {
+    fn key_to_node(&mut self, key: NodeKey) -> (NodeKey, &mut NodeData) {
+        let NodeKey { turns, grid } = key;
+        let idx = (turns % TURNS_MOD) as usize;
+        let max_grid = match self.sym_map[idx].get(&grid) {
             Some(&g) => g,
             None => {
                 // TODO: change max to include 0,0 + 0,1
-                let new_grids = symmetries(grid);
+                let new_grids = symmetries(&grid);
                 let max_grid = *new_grids.iter().max().unwrap();
                 for flipped_grid in new_grids {
-                    self.sym_map.insert(flipped_grid, max_grid);
+                    self.sym_map[idx].insert(flipped_grid, max_grid);
                 }
                 max_grid
             }
-        }
+        };
+        let flipped_key = NodeKey {
+            turns,
+            grid: max_grid,
+        };
+        let node = self.node_map[idx]
+            .entry(max_grid)
+            .or_insert_with_key(|&grid| new_node(&flipped_key));
+        (flipped_key, node)
     }
 
     fn negamax(&mut self, key: NodeKey, depth: i32, alpha: i32, beta: i32) -> i32 {
-        /*
-        let DEBUG = key == NodeKey { turns: 5026, grid: [[11, 10, 9, 5], [10, 8, 6, 4], [2, 4, 3, 1], [0, 0, 2, 4]] };
-        if DEBUG {
-            println!(">>> Negamax at key {key:?}, depth {depth}, ({alpha}, {beta})");
-        }
-        */
-        let max_grid = self.flip_grid(&key.grid);
-        let key = NodeKey {
-            turns: key.turns,
-            grid: max_grid,
-        };
-        // TODO: this is computing children even when depth = 0
-        // replace with lazy children
-        let node = self
-            .node_map
-            .entry(key)
-            .or_insert_with_key(|key| new_node(key));
+        let (key, node) = self.key_to_node(key);
 
         if depth <= node.search_depth {
             // already computed
@@ -220,13 +213,13 @@ impl Ai {
         if depth == 0 {
             // TODO: optimize leaf case
             let sign = 2 * (key.turns % 2) - 1;
-            node.value = sign * heuristic(&max_grid);
+            node.value = sign * heuristic(&key.grid);
             node.search_depth = 0;
             return node.value;
         }
 
         // TODO: use children.enumerate to save bext move? (or save ordering)
-        let mut value = -i32::MAX; // i32::MIN overflows when negated
+        let mut value = i32::MIN;
         let mut a = alpha;
         let mut best_child = None;
         // TODO: try let vec: &Vec = &node.children?
@@ -242,7 +235,8 @@ impl Ai {
             }
         }
 
-        let node = self.node_map.get_mut(&key).unwrap();
+        let idx = (key.turns % TURNS_MOD) as usize;
+        let node = self.node_map[idx].get_mut(&key.grid).unwrap();
         node.value = value;
         node.search_depth = depth;
         node.best_child = best_child;
@@ -250,35 +244,21 @@ impl Ai {
         value
     }
 
-    fn best_root_move(&self) -> Move {
+    fn best_root_move(&mut self) -> Move {
         let moves: &[Move] = if self.root_key.turns % 2 == 0 {
             &PLACER_MOVES
         } else {
             &SLIDER_MOVES
         };
-
-        let max_grid = *self.sym_map.get(&self.root_key.grid).unwrap();
-        let key = NodeKey {
-            turns: self.root_key.turns,
-            grid: max_grid,
-        };
-        let root_node = self.node_map.get(&key).unwrap();
+        
+        let (_, root_node) = self.key_to_node(self.root_key);
         let best_child = root_node.best_child.unwrap();
-        let max_grid = *self.sym_map.get(&best_child.grid).unwrap();
-        let best_child_flipped = NodeKey {
-            turns: best_child.turns,
-            grid: max_grid,
-        };
+        let (best_child_flipped, _) = self.key_to_node(best_child);
 
         let mut best_move = moves[0];
         for m in moves {
             if let Some(key) = apply_move(&self.root_key, *m) {
-                let max_grid = *self.sym_map.get(&key.grid).unwrap();
-                let key = NodeKey {
-                    turns: key.turns,
-                    grid: max_grid,
-                };
-                let child_node = self.node_map.get(&key).unwrap();
+                let (key, child_node) = self.key_to_node(key);
                 let child_value = -child_node.value;
                 println!("{m:?}, value = {child_value}");
                 if key == best_child_flipped {
@@ -289,15 +269,10 @@ impl Ai {
         best_move
     }
 
-    pub fn print_node(&self, key: NodeKey) {
+    pub fn print_node(&mut self, key: NodeKey) {
         println!("printing node {key:?}");
-        let max_grid = *self.sym_map.get(&key.grid).unwrap();
-        let key = NodeKey {
-            turns: key.turns,
-            grid: max_grid,
-        };
-        let child_node = self.node_map.get(&key).unwrap();
-        println!("{child_node:?}");
+        let node = self.key_to_node(key);
+        println!("{node:?}");
     }
 }
 
@@ -380,7 +355,14 @@ impl Player for Ai {
     }
 
     fn update_move(&mut self, m: &Move, _s: &State) {
+        let old_turns = (self.root_key.turns % TURNS_MOD) as usize;
         self.root_key = apply_move(&self.root_key, *m).unwrap();
+        if let Some(hashmap) = self.sym_map.get_mut(old_turns) {
+            hashmap.clear();
+        }
+        if let Some(hashmap) = self.node_map.get_mut(old_turns) {
+            hashmap.clear();
+        }
         println!("{:?}", self.root_key);
     }
 }
@@ -448,7 +430,7 @@ mod tests {
     }
     */
     use crate::state::INITIAL_STATE;
-    
+
     #[test]
     fn predict_death() {
         let s = INITIAL_STATE;
@@ -460,10 +442,19 @@ mod tests {
         ai.update_move(&Move::Place { x: 3, y: 2, val: 2 }, &s);
         let m = ai.pick_move(&s); // wrong choice
         println!("chosen move: {:?}", m);
-        ai.print_node(NodeKey { turns: 5025, grid: [[5, 9, 10, 11], [4, 6, 8, 10], [1, 3, 4, 2], [4, 1, 1, 0]] });
-        ai.print_node(NodeKey { turns: 5026, grid: [[11, 10, 9, 5], [10, 8, 6, 4], [2, 4, 3, 1], [0, 0, 2, 4]] });
+        ai.print_node(NodeKey {
+            turns: 5025,
+            grid: [[5, 9, 10, 11], [4, 6, 8, 10], [1, 3, 4, 2], [4, 1, 1, 0]],
+        });
+        ai.print_node(NodeKey {
+            turns: 5026,
+            grid: [[11, 10, 9, 5], [10, 8, 6, 4], [2, 4, 3, 1], [0, 0, 2, 4]],
+        });
         //ai.print_node(NodeKey { turns: 5027, grid: [[11, 10, 9, 5], [10, 8, 6, 4], [2, 4, 3, 1], [0, 1, 2, 4]] });
-        ai.print_node(NodeKey { turns: 5027, grid: [[11, 10, 9, 5], [10, 8, 6, 4], [2, 4, 3, 1], [1, 0, 2, 4]] });
+        ai.print_node(NodeKey {
+            turns: 5027,
+            grid: [[11, 10, 9, 5], [10, 8, 6, 4], [2, 4, 3, 1], [1, 0, 2, 4]],
+        });
         ai.update_move(&m, &s);
         let m = ai.pick_move(&s);
         println!("chosen move: {:?}", m);
