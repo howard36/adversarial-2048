@@ -136,8 +136,9 @@ struct NodeData {
     // search_depth = 0 if no children have been visited
     search_depth: i32,
 
-    // the final score if optimal players start from this state
-    value: i32,
+    // upper and lower bounds of the actual value of the state
+    upper_bound: i32,
+    lower_bound: i32,
 
     // unflipped keys
     children: Vec<NodeKey>,
@@ -199,37 +200,55 @@ impl Ai {
         };
         let node = self.node_map[idx]
             .entry(max_grid)
-            .or_insert_with_key(|&grid| new_node(&flipped_key));
+            .or_insert_with(|| new_node(&flipped_key));
         (flipped_key, node)
     }
 
     fn negamax(&mut self, key: NodeKey, depth: i32, alpha: i32, beta: i32) -> i32 {
         let (key, node) = self.key_to_node(key);
+        let mut a = alpha;
+        let mut b = beta;
 
-        if depth <= node.search_depth {
+        if node.search_depth >= depth {
             // already computed
-            return node.value;
+            if node.lower_bound >= b {
+                return node.lower_bound;
+            }
+            if node.upper_bound <= a {
+                return node.upper_bound;
+            }
+            a = cmp::max(a, node.lower_bound);
+            b = cmp::min(b, node.upper_bound);
+            if a >= b {
+                return a;
+            }
+        } else {
+            // overwrite existing bounds for old depth
+            node.lower_bound = i32::MIN;
+            node.upper_bound = i32::MAX;
         }
+
         if depth == 0 {
             // TODO: optimize leaf case
             let sign = 2 * (key.turns % 2) - 1;
-            node.value = sign * heuristic(&key.grid);
+            let value = sign * heuristic(&key.grid);
+            node.upper_bound = value;
+            node.lower_bound = value;
             node.search_depth = 0;
-            return node.value;
+            return value;
         }
 
-        // TODO: use children.enumerate to save bext move? (or save ordering)
         let mut value = i32::MIN;
-        let mut a = alpha;
+        // TODO: use children.enumerate to save bext move? (or save ordering)
         let mut best_child = None;
         // TODO: try let vec: &Vec = &node.children?
         for child_key in node.children.clone() {
-            let v = -self.negamax(child_key, depth - 1, -beta, -a);
+            let v = -self.negamax(child_key, depth - 1, -b, -a);
             if v > value {
                 best_child = Some(child_key);
                 value = v;
                 a = cmp::max(a, value);
-                if a >= beta {
+                if a >= b {
                     break;
                 }
             }
@@ -237,7 +256,15 @@ impl Ai {
 
         let idx = (key.turns % TURNS_MOD) as usize;
         let node = self.node_map[idx].get_mut(&key.grid).unwrap();
-        node.value = value;
+
+        // 3 cases: v in (-infty, a], (a, b), or [b, +infty)
+        // Set upper bound, both bounds, or lower bound in respective cases
+        if value < b {
+            node.upper_bound = value;
+        }
+        if value > a {
+            node.lower_bound = value;
+        }
         node.search_depth = depth;
         node.best_child = best_child;
 
@@ -258,9 +285,7 @@ impl Ai {
         let mut best_move = moves[0];
         for m in moves {
             if let Some(key) = apply_move(&self.root_key, *m) {
-                let (key, child_node) = self.key_to_node(key);
-                let child_value = -child_node.value;
-                println!("{m:?}, value = {child_value}");
+                let (key, _) = self.key_to_node(key);
                 if key == best_child_flipped {
                     best_move = *m;
                 }
@@ -303,7 +328,8 @@ fn new_node(key: &NodeKey) -> NodeData {
             //println!("Dead grid at {} turns", key.turns);
             return NodeData {
                 search_depth: i32::MAX, // exact value known
-                value: -1000000 + key.turns,
+                upper_bound: -1000000 + key.turns,
+                lower_bound: -1000000 + key.turns,
                 children: vec![],
                 best_child: None,
             };
@@ -317,8 +343,9 @@ fn new_node(key: &NodeKey) -> NodeData {
         .collect();
 
     NodeData {
-        search_depth: -1, // no heuristic calculated yet (value == None)
-        value: 0,         // shouldn't matter (TODO: test this)
+        search_depth: -1, // no heuristic calculated yet
+        upper_bound: i32::MAX,
+        lower_bound: i32::MIN,
         children,
         best_child: None,
     }
@@ -357,12 +384,8 @@ impl Player for Ai {
     fn update_move(&mut self, m: &Move, _s: &State) {
         let old_turns = (self.root_key.turns % TURNS_MOD) as usize;
         self.root_key = apply_move(&self.root_key, *m).unwrap();
-        if let Some(hashmap) = self.sym_map.get_mut(old_turns) {
-            hashmap.clear();
-        }
-        if let Some(hashmap) = self.node_map.get_mut(old_turns) {
-            hashmap.clear();
-        }
+        self.sym_map[old_turns].clear();
+        self.node_map[old_turns].clear();
         println!("{:?}", self.root_key);
     }
 }
@@ -378,8 +401,8 @@ fn heuristic(grid: &Grid) -> i32 {
     let mut penalty: i32 = 0;
     const H_DIFF: i32 = 1;
     const V_DIFF: i32 = 1;
-    const H_REV: i32 = 3;
-    const V_REV: i32 = 6;
+    const H_REV: i32 = 1;
+    const V_REV: i32 = 3;
     // horizontal differences
     for i in 0..4 {
         for j in 0..3 {
@@ -432,6 +455,7 @@ mod tests {
     use crate::state::INITIAL_STATE;
 
     #[test]
+    #[ignore]
     fn predict_death() {
         let s = INITIAL_STATE;
         let mut ai = Ai::new(13);
@@ -458,5 +482,12 @@ mod tests {
         ai.update_move(&m, &s);
         let m = ai.pick_move(&s);
         println!("chosen move: {:?}", m);
+    }
+
+    #[test]
+    fn empty_children_bug() {
+        let key = NodeKey { turns: 771, grid: [[8, 7, 6, 5], [7, 6, 4, 3], [5, 4, 3, 2], [1, 3, 2, 1]] };
+        let node = new_node(&key);
+        println!("{node:?}");
     }
 }
