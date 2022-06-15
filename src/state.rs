@@ -1,3 +1,5 @@
+use wasm_bindgen::prelude::*;
+
 #[derive(Debug, PartialEq, Copy, Clone)]
 pub enum Role {
     Slider,
@@ -69,6 +71,10 @@ impl State {
 
     pub fn next_to_move(&self) -> Role {
         self.next_to_move
+    }
+
+    pub fn score(&self) -> i32 {
+        self.score
     }
 
     pub fn terminal(&self) -> bool {

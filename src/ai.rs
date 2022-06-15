@@ -1,7 +1,9 @@
-use crate::state::{Direction, Move, State, PLACER_MOVES, SLIDER_MOVES};
+use crate::state::{Direction, Move, State, PLACER_MOVES, SLIDER_MOVES, INITIAL_STATE};
 use crate::Player;
 use std::cmp;
 use std::collections::HashMap;
+use wasm_bindgen::prelude::*;
+use crate::utils::{self, log};
 
 type Grid = [[u8; 4]; 4];
 
@@ -148,6 +150,7 @@ struct NodeData {
     best_child: Option<NodeKey>,
 }
 
+#[wasm_bindgen]
 pub struct Ai {
     // index = depth (root depth is 0)
     // even depth -> Placer, odd depth -> Slider
@@ -159,26 +162,6 @@ pub struct Ai {
 }
 
 impl Ai {
-    pub fn new(search_depth: i32) -> Ai {
-        let root_key = NodeKey {
-            turns: 0,
-            grid: [[0u8; 4]; 4],
-        };
-        let mut sym_map = Vec::new();
-        let mut node_map = Vec::new();
-        for _ in 0..TURNS_MOD {
-            sym_map.push(HashMap::new());
-            node_map.push(HashMap::new());
-        }
-
-        Ai {
-            sym_map,
-            node_map,
-            root_key,
-            search_depth,
-        }
-    }
-
     fn key_to_node(&mut self, key: NodeKey) -> (NodeKey, &mut NodeData) {
         let NodeKey { turns, grid } = key;
         let idx = (turns % TURNS_MOD) as usize;
@@ -277,7 +260,7 @@ impl Ai {
         } else {
             &SLIDER_MOVES
         };
-        
+
         let (_, root_node) = self.key_to_node(self.root_key);
         let best_child = root_node.best_child.unwrap();
         let (best_child_flipped, _) = self.key_to_node(best_child);
@@ -328,8 +311,8 @@ fn new_node(key: &NodeKey) -> NodeData {
             //println!("Dead grid at {} turns", key.turns);
             return NodeData {
                 search_depth: i32::MAX, // exact value known
-                upper_bound: -1000000 + key.turns,
-                lower_bound: -1000000 + key.turns,
+                upper_bound: -1000_000_000 + key.turns,
+                lower_bound: -1000_000_000 + key.turns,
                 children: vec![],
                 best_child: None,
             };
@@ -372,6 +355,7 @@ fn dead_grid(g: &Grid) -> bool {
 
 impl Player for Ai {
     fn pick_move(&mut self, _s: &State) -> Move {
+        log!("picking move");
         // TODO: assert state matches self.root_key.grid
         let v = self.negamax(self.root_key, self.search_depth, -i32::MAX, i32::MAX);
         println!(
@@ -382,11 +366,12 @@ impl Player for Ai {
     }
 
     fn update_move(&mut self, m: &Move, _s: &State) {
+        log!("updating move");
         let old_turns = (self.root_key.turns % TURNS_MOD) as usize;
         self.root_key = apply_move(&self.root_key, *m).unwrap();
         self.sym_map[old_turns].clear();
         self.node_map[old_turns].clear();
-        println!("{:?}", self.root_key);
+        //println!("{:?}", self.root_key);
     }
 }
 
@@ -398,16 +383,22 @@ fn heuristic(grid: &Grid) -> i32 {
         }
     }
 
+    let mut score: i32 = 0;
     let mut penalty: i32 = 0;
     const H_DIFF: i32 = 1;
     const V_DIFF: i32 = 1;
-    const H_REV: i32 = 1;
+    const H_REV: i32 = 3;
     const V_REV: i32 = 3;
+    const H_EQ: i32 = 2;
+    const V_EQ: i32 = 2;
     // horizontal differences
     for i in 0..4 {
         for j in 0..3 {
             let d = sq[i][j + 1] - sq[i][j];
             penalty += (2 * H_DIFF + H_REV) * d.abs() + H_REV * d;
+            if d == 0 {
+                score += H_EQ * sq[i][j];
+            }
         }
     }
     // vertical differences
@@ -415,9 +406,12 @@ fn heuristic(grid: &Grid) -> i32 {
         for j in 0..4 {
             let d = sq[i + 1][j] - sq[i][j];
             penalty += (2 * V_DIFF + V_REV) * d.abs() + V_REV * d;
+            if d == 0 {
+                score += V_EQ * sq[i][j];
+            }
         }
     }
-    -penalty
+    score - penalty
 }
 
 // TODO: optimize with bit operations when Grid = u64
@@ -438,6 +432,73 @@ fn symmetries(grid: &Grid) -> [Grid; 8] {
     }
     return ret;
 }
+
+#[wasm_bindgen]
+pub struct WasmPlace {
+    x: usize,
+    y: usize,
+    val: i32,
+}
+
+#[wasm_bindgen]
+impl WasmPlace {
+    pub fn x(&self) -> usize { self.x }
+    pub fn y(&self) -> usize { self.y }
+    pub fn val(&self) -> i32 { self.val }
+
+}
+
+#[wasm_bindgen]
+impl Ai {
+    pub fn new(search_depth: i32) -> Ai {
+        utils::set_panic_hook();
+        let root_key = NodeKey {
+            turns: 0,
+            grid: [[0u8; 4]; 4],
+        };
+        let mut sym_map = Vec::new();
+        let mut node_map = Vec::new();
+        for _ in 0..TURNS_MOD {
+            sym_map.push(HashMap::new());
+            node_map.push(HashMap::new());
+        }
+
+        Ai {
+            sym_map,
+            node_map,
+            root_key,
+            search_depth,
+        }
+    }
+
+    pub fn update_slider_move(&mut self, direction: i32) {
+        let m = Move::Slide(match direction {
+            0 => Direction::Up,
+            1 => Direction::Right,
+            2 => Direction::Down,
+            3 => Direction::Left,
+            _ => panic!("Invalid Direction"),
+        });
+        self.update_move(&m, &INITIAL_STATE);
+    }
+
+    pub fn get_placer_move(&mut self) -> WasmPlace {
+        let m = self.pick_move(&INITIAL_STATE);
+        self.update_move(&m, &INITIAL_STATE);
+        match m {
+            Move::Place { x, y, val } => WasmPlace { x, y, val },
+            _ => panic!("Invalid move returned from pick_move"),
+        }
+    }
+
+    // TODO
+    /*
+    pub fn reset_board(&mut self) {
+        
+    }
+    */
+}
+
 
 #[cfg(test)]
 mod tests {
@@ -486,7 +547,10 @@ mod tests {
 
     #[test]
     fn empty_children_bug() {
-        let key = NodeKey { turns: 771, grid: [[8, 7, 6, 5], [7, 6, 4, 3], [5, 4, 3, 2], [1, 3, 2, 1]] };
+        let key = NodeKey {
+            turns: 771,
+            grid: [[8, 7, 6, 5], [7, 6, 4, 3], [5, 4, 3, 2], [1, 3, 2, 1]],
+        };
         let node = new_node(&key);
         println!("{node:?}");
     }
