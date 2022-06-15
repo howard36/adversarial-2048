@@ -7,7 +7,7 @@ function GameManager(size, InputManager, Actuator, StorageManager, Ai) {
   this.actuator       = new Actuator;
   this.ai = Ai;
 
-  this.startTiles     = 1;
+  this.startTiles     = 2;
 
   this.inputManager.on("move", this.move.bind(this));
   this.inputManager.on("restart", this.restart.bind(this));
@@ -46,6 +46,7 @@ GameManager.prototype.setup = function () {
     this.over        = previousState.over;
     this.won         = previousState.won;
     this.keepPlaying = previousState.keepPlaying;
+	
   } else {
     this.grid        = new Grid(this.size);
     this.score       = 0;
@@ -56,6 +57,7 @@ GameManager.prototype.setup = function () {
     // Add the initial tiles
     this.addStartTiles();
   }
+  this.ai.init_from_grid(this.grid.toArray());
 
   // Update the actuator
   this.actuate();
@@ -65,8 +67,8 @@ GameManager.prototype.setup = function () {
 GameManager.prototype.addStartTiles = function () {
   for (var i = 0; i < this.startTiles; i++) {
 	console.log("adding start tile");
-    //this.addRandomTile();
-	this.aiMove();
+    this.addRandomTile();
+	//this.aiMove();
   }
 };
 

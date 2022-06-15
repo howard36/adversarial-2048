@@ -116,3 +116,18 @@ Grid.prototype.serialize = function () {
     cells: cellState
   };
 };
+
+Grid.prototype.toArray = function () {
+	let arr = new Uint8Array(16);
+	for (let x = 0; x < 4; x++) {
+		for (let y = 0; y < 4; y++) {
+			if (this.cells[y][x]) {
+				arr[4*x + y] = Math.log2(this.cells[y][x].value);
+			} else {
+				arr[4*x + y] = 0;
+			}
+		}
+	}
+	console.log(arr);
+	return arr;
+}

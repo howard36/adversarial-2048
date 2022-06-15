@@ -491,12 +491,25 @@ impl Ai {
         }
     }
 
-    // TODO
-    /*
-    pub fn reset_board(&mut self) {
+    pub fn init_from_grid(&mut self, grid1d: &[u8]) {
+        log!("init from {grid1d:?}");
         
+        let mut grid = [[0u8; 4]; 4];
+        let mut turns = -1;
+        for i in 0..16 {
+            grid[i/4][i%4] = grid1d[i];
+            turns += 2 * grid1d[i] as i32;
+        }
+        self.root_key = NodeKey {
+            turns,
+            grid,
+        };
+
+        for i in 0..TURNS_MOD {
+            self.sym_map[i as usize].clear();
+            self.node_map[i as usize].clear();
+        }
     }
-    */
 }
 
 
