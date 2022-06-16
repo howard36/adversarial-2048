@@ -13,7 +13,7 @@ module.exports = {
 		'index.html',
 		'js/!(bootstrap.js)',
 		'meta/*',
-		'style/*',
+		'style/**/*',
 		'favicon.ico',
 	])
   ],
