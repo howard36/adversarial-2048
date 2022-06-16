@@ -9,6 +9,12 @@ module.exports = {
   },
   mode: "development",
   plugins: [
-    new CopyWebpackPlugin(['index.html'])
+    new CopyWebpackPlugin([
+		'index.html',
+		'js/!(bootstrap.js)',
+		'meta/*',
+		'style/*',
+		'favicon.ico',
+	])
   ],
 };
