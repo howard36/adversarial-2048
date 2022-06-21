@@ -217,7 +217,7 @@ impl Ai {
             let value = sign * heuristic(&key.grid);
             node.upper_bound = value;
             node.lower_bound = value;
-            node.search_depth = 0;
+            node.search_depth = key.turns;
             return value;
         }
 

@@ -1,6 +1,6 @@
 import { Ai } from "adversarial-2048";
 
-const ai = Ai.new(13);
+const ai = Ai.new(11);
 console.log(ai);
 console.log(typeof(ai));
 
