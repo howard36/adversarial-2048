@@ -42,7 +42,7 @@ pub const SLIDER_MOVES: [Move; 4] = [
     Move::Slide(Direction::Down),
 ];
 
-pub const PLACER_MOVES: [Move; 16] = [
+pub const PLACER_MOVES: [Move; 32] = [
     Move::Place { x: 0, y: 0, val: 2 },
     Move::Place { x: 0, y: 1, val: 2 },
     Move::Place { x: 0, y: 2, val: 2 },
@@ -59,6 +59,22 @@ pub const PLACER_MOVES: [Move; 16] = [
     Move::Place { x: 3, y: 1, val: 2 },
     Move::Place { x: 3, y: 2, val: 2 },
     Move::Place { x: 3, y: 3, val: 2 },
+    Move::Place { x: 0, y: 0, val: 4 },
+    Move::Place { x: 0, y: 1, val: 4 },
+    Move::Place { x: 0, y: 2, val: 4 },
+    Move::Place { x: 0, y: 3, val: 4 },
+    Move::Place { x: 1, y: 0, val: 4 },
+    Move::Place { x: 1, y: 1, val: 4 },
+    Move::Place { x: 1, y: 2, val: 4 },
+    Move::Place { x: 1, y: 3, val: 4 },
+    Move::Place { x: 2, y: 0, val: 4 },
+    Move::Place { x: 2, y: 1, val: 4 },
+    Move::Place { x: 2, y: 2, val: 4 },
+    Move::Place { x: 2, y: 3, val: 4 },
+    Move::Place { x: 3, y: 0, val: 4 },
+    Move::Place { x: 3, y: 1, val: 4 },
+    Move::Place { x: 3, y: 2, val: 4 },
+    Move::Place { x: 3, y: 3, val: 4 },
 ];
 
 #[derive(Debug)]

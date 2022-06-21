@@ -15,6 +15,7 @@ module.exports = {
 		'meta/*',
 		'style/**/*',
 		'favicon.ico',
+		'CNAME',
 	])
   ],
 };

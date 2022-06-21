@@ -187,12 +187,12 @@ impl Ai {
         (flipped_key, node)
     }
 
-    fn negamax(&mut self, key: NodeKey, depth: i32, alpha: i32, beta: i32) -> i32 {
+    fn negamax(&mut self, key: NodeKey, max_depth: i32, alpha: i32, beta: i32) -> i32 {
         let (key, node) = self.key_to_node(key);
         let mut a = alpha;
         let mut b = beta;
 
-        if node.search_depth >= depth {
+        if node.search_depth >= max_depth {
             // already computed
             if node.lower_bound >= b {
                 return node.lower_bound;
@@ -211,7 +211,7 @@ impl Ai {
             node.upper_bound = i32::MAX;
         }
 
-        if depth == 0 {
+        if key.turns >= max_depth {
             // TODO: optimize leaf case
             let sign = 2 * (key.turns % 2) - 1;
             let value = sign * heuristic(&key.grid);
@@ -226,7 +226,7 @@ impl Ai {
         let mut best_child = None;
         // TODO: try let vec: &Vec = &node.children?
         for child_key in node.children.clone() {
-            let v = -self.negamax(child_key, depth - 1, -b, -a);
+            let v = -self.negamax(child_key, max_depth, -b, -a);
             if v > value {
                 best_child = Some(child_key);
                 value = v;
@@ -248,7 +248,7 @@ impl Ai {
         if value > a {
             node.lower_bound = value;
         }
-        node.search_depth = depth;
+        node.search_depth = max_depth;
         node.best_child = best_child;
 
         value
@@ -288,6 +288,7 @@ impl Ai {
 // TODO: replace with apply_all_moves
 fn apply_move(key: &NodeKey, m: Move) -> Option<NodeKey> {
     let NodeKey { turns, grid } = key;
+    let mut turn_increment = 1;
     match m {
         Move::Slide(d) => match d {
             Direction::Up => slide_up(grid),
@@ -295,10 +296,13 @@ fn apply_move(key: &NodeKey, m: Move) -> Option<NodeKey> {
             Direction::Left => slide_left(grid),
             Direction::Right => slide_right(grid),
         },
-        Move::Place { x, y, val } => place(grid, x, y, (val / 2) as u8), // TODO
+        Move::Place { x, y, val } => {
+            turn_increment = val - 1; // 1 or 3
+            place(grid, x, y, (val / 2) as u8)
+        }
     }
     .map(|grid| NodeKey {
-        turns: *turns + 1,
+        turns: *turns + turn_increment,
         grid,
     })
 }
@@ -355,9 +359,9 @@ fn dead_grid(g: &Grid) -> bool {
 
 impl Player for Ai {
     fn pick_move(&mut self, _s: &State) -> Move {
-        log!("picking move");
         // TODO: assert state matches self.root_key.grid
-        let v = self.negamax(self.root_key, self.search_depth, -i32::MAX, i32::MAX);
+        let max_depth = self.root_key.turns + self.search_depth;
+        let v = self.negamax(self.root_key, max_depth, -i32::MAX, i32::MAX);
         println!(
             "negamax root value = {}, turns = {}",
             v, self.root_key.turns
@@ -376,20 +380,22 @@ impl Player for Ai {
 }
 
 fn heuristic(grid: &Grid) -> i32 {
+    let mut score: i32 = 0;
+    let mut penalty: i32 = 0;
+
+    // adjustable hyperparameters
+    const H_DIFF: i32 = 1;
+    const V_DIFF: i32 = 1;
+    const H_REV: i32 = 3;
+    const V_REV: i32 = 3;
+    const H_EQ: i32 = 2;
+
     let mut sq = [[0; 4]; 4];
     for i in 0..4 {
         for j in 0..4 {
             sq[i][j] = (grid[i][j] * grid[i][j]) as i32;
         }
     }
-
-    let mut score: i32 = 0;
-    let mut penalty: i32 = 0;
-    const H_DIFF: i32 = 1;
-    const V_DIFF: i32 = 1;
-    const H_REV: i32 = 3;
-    const V_REV: i32 = 3;
-    const H_EQ: i32 = 2;
     const V_EQ: i32 = 2;
     // horizontal differences
     for i in 0..4 {
@@ -470,6 +476,7 @@ impl Ai {
             search_depth,
         }
     }
+
 
     pub fn update_slider_move(&mut self, direction: i32) {
         let m = Move::Slide(match direction {
