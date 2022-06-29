@@ -1,5 +1,5 @@
 # Adversarial 2048
 
-A variant of the game 2048, where you play against an AI that strategically places new blocks to make it harder for you.
+2048, but the RNG is always against you.
 
-(Also my first Recurse Center project!)
+Play it at [adversarial2048.com](https://www.adversarial2048.com/)!
