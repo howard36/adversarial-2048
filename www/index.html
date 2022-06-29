@@ -2,9 +2,10 @@
 <html>
 <head>
   <meta charset="utf-8">
-  <title>2048</title>
+  <title>Adversarial 2048</title>
 
   <link href="style/main.css" rel="stylesheet" type="text/css">
+  <link href="style/custom.css" rel="stylesheet" type="text/css">
   <link rel="shortcut icon" href="favicon.ico">
   <link rel="apple-touch-icon" href="meta/apple-touch-icon.png">
   <link rel="apple-touch-startup-image" href="meta/apple-touch-startup-image-640x1096.png" media="(device-width: 320px) and (device-height: 568px) and (-webkit-device-pixel-ratio: 2)"> <!-- iPhone 5+ -->
@@ -19,16 +20,18 @@
 <body>
   <div class="container">
     <div class="heading">
-      <h1 class="title">2048</h1>
-      <div class="scores-container">
-        <div class="score-container">0</div>
-        <div class="best-container">0</div>
-      </div>
+      <h1 class="title">Adversarial 2048</h1>
     </div>
 
     <div class="above-game">
-      <p class="game-intro">Join the numbers and get to the <strong>2048 tile!</strong></p>
-      <a class="restart-button">New Game</a>
+      <p class="game-intro">2048, but the RNG is always against you</p>
+      <div class="interface">
+	    <div class="scores-container">
+          <div class="score-container">0</div>
+          <div class="best-container">0</div>
+        </div>
+        <a class="restart-button">New Game</a>
+	  </div>
     </div>
 
     <div class="game-container">
@@ -77,12 +80,7 @@
     </p>
     <hr>
     <p>
-    <strong class="important">Note:</strong> This site is the official version of 2048. You can play it on your phone via <a href="http://git.io/2048">http://git.io/2048.</a> All other apps or sites are derivatives or fakes, and should be used with caution.
-    </p>
-    <hr>
-    <p>
-    Created by <a href="http://gabrielecirulli.com" target="_blank">Gabriele Cirulli.</a> Based on <a href="https://itunes.apple.com/us/app/1024!/id823499224" target="_blank">1024 by Veewo Studio</a> and conceptually similar to <a href="http://asherv.com/threes/" target="_blank">Threes by Asher Vollmer.</a>
-    </p>
+	Created by <a href="https://howardhalim.com" target="_blank" rel="noopener noreferrer">Howard Halim</a>. Inspired by <a href="https://qntm.org/files/hatetris/hatetris.html" target="_blank" rel="noopener noreferrer">Hatetris</a> and <a href="https://qntm.org/files/absurdle/absurdle.html" target="_blank" rel="noopener noreferrer">Absurdle</a> by qntm, and based on the original <a href="https://play2048.co/" target="_blank" rel="noopener noreferrer">2048</a> by Gabriele Cirulli.</p>
   </div>
 
   <script src="js/bind_polyfill.js"></script>

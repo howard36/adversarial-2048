@@ -1,0 +1,40 @@
+h1.title {
+  font-size: 60px;
+}
+
+.above-game {
+  display: flex;
+}
+
+.game-intro {
+  flex: 1;
+  line-height: 1.5;
+  margin-right: 16px;
+  margin-top: 8px;
+}
+
+.interface {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.restart-button {
+  margin-top: 6px;
+}
+
+@media screen and (max-width: 520px) {
+  h1.title {
+	font-size: 35px;
+  }
+
+  .game-intro {
+    margin-right: 8px;
+	margin-top: 0px;
+  }
+
+  .restart-button {
+	width: auto;
+  }
+}
+
