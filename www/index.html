@@ -78,9 +78,21 @@
     <p class="game-explanation">
       <strong class="important">How to play:</strong> Use your <strong>arrow keys</strong> to move the tiles. When two tiles with the same number touch, they <strong>merge into one!</strong>
     </p>
+	<hr>
+    <h1>
+	  What's going on?
+	</h1>
+	<p>
+	  Normally, 2048 is a 1-player game - you slide tiles around while new tiles are randomly generated. But in Adversarial 2048 you have an opponent: a computer program running in the background which tries to minimize your score, by placing new tiles in the worst possible location.
+	</p>
+    <h1>
+	  How does it work?
+	</h1>
+	<p>
+	  By turning 2048 into a 2-player zero-sum game, the computer program can use the minimax algorithm to figure out its best move (or worst move, from your perspective). It searches 11 moves ahead, calculating millions of future game states and evaluating them with a heuristic function, much like a chess engine. Since the number of possible states grows exponentially, it uses optimizations like alpha-beta pruning to avoid having to check the entire search tree. The code is open sourced on <a href="https://github.com/Plasma-Vortex/adversarial-2048" target="_blank" rel="noopener noreferrer">Github</a>.
+	</p>
     <hr>
-    <p>
-	Created by <a href="https://howardhalim.com" target="_blank" rel="noopener noreferrer">Howard Halim</a>. Inspired by <a href="https://qntm.org/files/hatetris/hatetris.html" target="_blank" rel="noopener noreferrer">Hatetris</a> and <a href="https://qntm.org/files/absurdle/absurdle.html" target="_blank" rel="noopener noreferrer">Absurdle</a> by qntm, and based on the original <a href="https://play2048.co/" target="_blank" rel="noopener noreferrer">2048</a> by Gabriele Cirulli.</p>
+    <p>Created by <a href="https://howardhalim.com" target="_blank" rel="noopener noreferrer">Howard Halim</a>. Inspired by <a href="https://qntm.org/files/hatetris/hatetris.html" target="_blank" rel="noopener noreferrer">Hatetris</a> and <a href="https://qntm.org/files/absurdle/absurdle.html" target="_blank" rel="noopener noreferrer">Absurdle</a> by qntm, and based on the original <a href="https://play2048.co/" target="_blank" rel="noopener noreferrer">2048</a> by Gabriele Cirulli.</p>
   </div>
 
   <script src="js/bind_polyfill.js"></script>
