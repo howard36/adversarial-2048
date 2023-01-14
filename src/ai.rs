@@ -389,6 +389,7 @@ fn heuristic(grid: &Grid) -> i32 {
     const H_REV: i32 = 3;
     const V_REV: i32 = 3;
     const H_EQ: i32 = 2;
+    const V_EQ: i32 = 2;
 
     let mut sq = [[0; 4]; 4];
     for i in 0..4 {
@@ -396,7 +397,6 @@ fn heuristic(grid: &Grid) -> i32 {
             sq[i][j] = (grid[i][j] * grid[i][j]) as i32;
         }
     }
-    const V_EQ: i32 = 2;
     // horizontal differences
     for i in 0..4 {
         for j in 0..3 {
